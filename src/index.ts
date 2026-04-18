@@ -7,6 +7,7 @@ export function createUrl(options?: CreateUrlOptions): WhichUrl {
   const parsed = new URL(resolved)
   const env = resolveEnv()
   return {
+    appUrl: parsed.origin,
     href: parsed.origin,
     origin: parsed.origin,
     hostname: parsed.hostname,
@@ -24,6 +25,7 @@ export function createUrl(options?: CreateUrlOptions): WhichUrl {
 const _resolved = createUrl()
 
 // Named exports — plain primitives
+export const appUrl: string = _resolved.href
 export const href: string = _resolved.href
 export const origin: string = _resolved.origin
 export const hostname: string = _resolved.hostname

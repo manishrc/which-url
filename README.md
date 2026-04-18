@@ -7,10 +7,9 @@ npm install which-url
 ```
 
 ```typescript
-import whichUrl from 'which-url'
+import { appUrl } from 'which-url'
 
-whichUrl.href      // "https://myapp.vercel.app"
-whichUrl.hostname  // "myapp.vercel.app"
+auth({ baseURL: appUrl })  // just works — local, preview, production
 ```
 
 Works on Vercel, Netlify, Cloudflare Pages, Railway, Fly.io, Render, DigitalOcean, and Heroku — automatically.
@@ -20,11 +19,11 @@ Works on Vercel, Netlify, Cloudflare Pages, Railway, Fly.io, Render, DigitalOcea
 ### Named exports (plain strings — zero type friction)
 
 ```typescript
-import { href, hostname, origin, isProduction } from 'which-url'
+import { appUrl, hostname, origin, isProduction } from 'which-url'
 
 // Pass directly to any function that expects a string
-process.env.BETTER_AUTH_URL = href
-fetch(`${href}/api/data`)
+process.env.BETTER_AUTH_URL = appUrl
+fetch(`${appUrl}/api/data`)
 cookie.domain = hostname
 
 if (isProduction) {
@@ -37,7 +36,8 @@ if (isProduction) {
 ```typescript
 import whichUrl from 'which-url'
 
-whichUrl.href        // "https://myapp.vercel.app"
+whichUrl.appUrl      // "https://myapp.vercel.app"
+whichUrl.href        // "https://myapp.vercel.app"  (alias)
 whichUrl.origin      // "https://myapp.vercel.app"
 whichUrl.hostname    // "myapp.vercel.app"
 whichUrl.host        // "myapp.vercel.app"
@@ -143,11 +143,11 @@ Modern wrangler polyfills `process.env` from `[vars]`, so `which-url` picks it u
 ### Better Auth
 
 ```typescript
-import { href } from 'which-url'
+import { appUrl } from 'which-url'
 import { betterAuth } from 'better-auth'
 
 export const auth = betterAuth({
-  baseURL: href,
+  baseURL: appUrl,
   // ...
 })
 ```
@@ -155,10 +155,10 @@ export const auth = betterAuth({
 ### NextAuth / Auth.js
 
 ```typescript
-import { href } from 'which-url'
+import { appUrl } from 'which-url'
 
 // No need to set NEXTAUTH_URL manually
-process.env.NEXTAUTH_URL = href
+process.env.NEXTAUTH_URL = appUrl
 ```
 
 ## API
@@ -167,7 +167,8 @@ process.env.NEXTAUTH_URL = href
 
 | Export | Type | Description |
 |--------|------|-------------|
-| `href` | `string` | Full URL (`https://myapp.vercel.app`) |
+| `appUrl` | `string` | Full URL (`https://myapp.vercel.app`) |
+| `href` | `string` | Alias for `appUrl` |
 | `origin` | `string` | Origin (`https://myapp.vercel.app`) |
 | `hostname` | `string` | Hostname (`myapp.vercel.app`) |
 | `host` | `string` | Host with port (`myapp.vercel.app`) |
