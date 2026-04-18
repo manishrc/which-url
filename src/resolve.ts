@@ -36,6 +36,6 @@ export function resolveUrl(options?: CreateUrlOptions): string {
 
   // 6. Production without fallback — throw
   throw new Error(
-    "thisapp: Cannot detect app URL. Set APP_URL environment variable."
+    "which-url: Cannot detect app URL. Set APP_URL environment variable."
   )
 }

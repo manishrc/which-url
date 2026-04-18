@@ -10,7 +10,7 @@ afterEach(() => {
   process.env = savedEnv
 })
 
-describe("thisapp public API", () => {
+describe("which-url public API", () => {
   test("default export is an object with WHATWG URL properties", async () => {
     process.env.APP_URL = "https://myapp.vercel.app"
     // Dynamic import to pick up env changes

@@ -1,6 +1,6 @@
 export type AppEnv = "production" | "preview" | "local"
 
-export interface ThisApp {
+export interface WhichUrl {
   href: string
   origin: string
   hostname: string

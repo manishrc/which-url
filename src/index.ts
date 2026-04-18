@@ -1,8 +1,8 @@
 import { resolveUrl } from "./resolve"
 import { resolveEnv } from "./env"
-import type { ThisApp, AppEnv, CreateUrlOptions } from "./types"
+import type { WhichUrl, AppEnv, CreateUrlOptions } from "./types"
 
-export function createUrl(options?: CreateUrlOptions): ThisApp {
+export function createUrl(options?: CreateUrlOptions): WhichUrl {
   const resolved = resolveUrl(options)
   const parsed = new URL(resolved)
   const env = resolveEnv()
@@ -38,4 +38,4 @@ export const isLocal: boolean = _resolved.isLocal
 // Default export — object
 export default _resolved
 
-export type { ThisApp, AppEnv, CreateUrlOptions }
+export type { WhichUrl, AppEnv, CreateUrlOptions }

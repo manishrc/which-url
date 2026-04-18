@@ -70,7 +70,7 @@ describe("resolveUrl", () => {
 
   test("throws in production when no URL detected", () => {
     process.env.NODE_ENV = "production"
-    expect(() => resolveUrl()).toThrow("thisapp: Cannot detect app URL")
+    expect(() => resolveUrl()).toThrow("which-url: Cannot detect app URL")
   })
 
   test("does not throw in production when fallback provided", () => {

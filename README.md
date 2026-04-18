@@ -1,16 +1,16 @@
-# thisapp
+# which-url
 
 Auto-detect your app's URL across hosting providers. Zero config.
 
 ```bash
-npm install thisapp
+npm install which-url
 ```
 
 ```typescript
-import thisApp from 'thisapp'
+import whichUrl from 'which-url'
 
-thisApp.href      // "https://myapp.vercel.app"
-thisApp.hostname  // "myapp.vercel.app"
+whichUrl.href      // "https://myapp.vercel.app"
+whichUrl.hostname  // "myapp.vercel.app"
 ```
 
 Works on Vercel, Netlify, Cloudflare Pages, Railway, Fly.io, Render, DigitalOcean, and Heroku — automatically.
@@ -20,7 +20,7 @@ Works on Vercel, Netlify, Cloudflare Pages, Railway, Fly.io, Render, DigitalOcea
 ### Named exports (plain strings — zero type friction)
 
 ```typescript
-import { href, hostname, origin, isProduction } from 'thisapp'
+import { href, hostname, origin, isProduction } from 'which-url'
 
 // Pass directly to any function that expects a string
 process.env.BETTER_AUTH_URL = href
@@ -35,26 +35,26 @@ if (isProduction) {
 ### Default export (object with dot access)
 
 ```typescript
-import thisApp from 'thisapp'
+import whichUrl from 'which-url'
 
-thisApp.href        // "https://myapp.vercel.app"
-thisApp.origin      // "https://myapp.vercel.app"
-thisApp.hostname    // "myapp.vercel.app"
-thisApp.host        // "myapp.vercel.app"
-thisApp.protocol    // "https:"
-thisApp.port        // ""
+whichUrl.href        // "https://myapp.vercel.app"
+whichUrl.origin      // "https://myapp.vercel.app"
+whichUrl.hostname    // "myapp.vercel.app"
+whichUrl.host        // "myapp.vercel.app"
+whichUrl.protocol    // "https:"
+whichUrl.port        // ""
 
-thisApp.env           // "production" | "preview" | "local"
-thisApp.isProduction  // boolean
-thisApp.isPreview     // boolean
-thisApp.isLocal       // boolean
+whichUrl.env           // "production" | "preview" | "local"
+whichUrl.isProduction  // boolean
+whichUrl.isPreview     // boolean
+whichUrl.isLocal       // boolean
 ```
 
 Property names follow the [WHATWG URL spec](https://url.spec.whatwg.org/) — nothing new to learn.
 
 ## How it works
 
-`thisapp` reads environment variables that hosting providers set automatically. No configuration needed.
+`which-url` reads environment variables that hosting providers set automatically. No configuration needed.
 
 **Resolution priority:**
 
@@ -114,12 +114,12 @@ APP_URL=$(curl -s localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url') n
 
 ## Error handling
 
-In **production**, `thisapp` throws if it can't detect the URL — preventing silent misconfiguration (broken OAuth, CORS, emails pointing to localhost).
+In **production**, `which-url` throws if it can't detect the URL — preventing silent misconfiguration (broken OAuth, CORS, emails pointing to localhost).
 
 Use `createUrl` with a fallback to opt into lenient behavior:
 
 ```typescript
-import { createUrl } from 'thisapp'
+import { createUrl } from 'which-url'
 
 const url = createUrl({ fallback: 'https://fallback.example.com' })
 url.href // never throws
@@ -136,14 +136,14 @@ Cloudflare Workers use runtime `env` bindings instead of `process.env`. Set `APP
 APP_URL = "https://myapp.workers.dev"
 ```
 
-Modern wrangler polyfills `process.env` from `[vars]`, so `thisapp` picks it up automatically. Cloudflare Pages build-time env vars also work.
+Modern wrangler polyfills `process.env` from `[vars]`, so `which-url` picks it up automatically. Cloudflare Pages build-time env vars also work.
 
 ## Integrations
 
 ### Better Auth
 
 ```typescript
-import { href } from 'thisapp'
+import { href } from 'which-url'
 import { betterAuth } from 'better-auth'
 
 export const auth = betterAuth({
@@ -155,7 +155,7 @@ export const auth = betterAuth({
 ### NextAuth / Auth.js
 
 ```typescript
-import { href } from 'thisapp'
+import { href } from 'which-url'
 
 // No need to set NEXTAUTH_URL manually
 process.env.NEXTAUTH_URL = href
@@ -182,7 +182,7 @@ process.env.NEXTAUTH_URL = href
 ### `createUrl(options?)`
 
 ```typescript
-createUrl({ fallback?: string }): ThisApp
+createUrl({ fallback?: string }): WhichUrl
 ```
 
 Re-resolves the URL from current environment. Use for:
