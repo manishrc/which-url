@@ -7,127 +7,156 @@ npm install which-url
 ```
 
 ```typescript
-import { appUrl } from 'which-url'
+import { origin } from 'which-url'
 
-auth({ baseURL: appUrl })  // just works — local, preview, production
+auth({ baseURL: origin })
+fetch(`${origin}/api/data`)
 ```
 
-Works on Vercel, Netlify, Cloudflare Pages, Railway, Fly.io, Render, DigitalOcean, and Heroku — automatically.
+```
+              origin                                env
+Local         http://localhost:3000                  "local"
+Preview       https://myapp-git-feat.vercel.app     "preview"
+Production    https://myapp.com                     "production"
+```
 
-## Usage
+Works across environments (local, preview, production), runtimes (server, client, edge), and [platforms](#platform-support).
 
-### Named exports (plain strings — zero type friction)
+The default export gives you everything as an object:
 
 ```typescript
-import { appUrl, hostname, origin, isProduction } from 'which-url'
+import appUrl from 'which-url'
 
-// Pass directly to any function that expects a string
-process.env.BETTER_AUTH_URL = appUrl
-fetch(`${appUrl}/api/data`)
-cookie.domain = hostname
+appUrl.origin       // "https://myapp.com"
+appUrl.hostname     // "myapp.com"
+appUrl.protocol     // "https:"
+appUrl.env          // "production"
+appUrl.platform     // "vercel"
+appUrl.isProduction // true
+```
 
-if (isProduction) {
-  // production-only logic
+## The problem
+
+Your app's base URL shows up everywhere — OAuth callbacks, API calls, CORS, emails. Every one of these breaks if the URL is wrong:
+
+```typescript
+// Auth — needs the exact URL for OAuth redirects
+auth({ baseURL: ??? })
+
+// API calls from the client
+fetch(`${???}/api/data`)
+
+// Emails — links need to point somewhere real
+`Click here to verify: ${???}/verify?token=${token}`
+
+// CORS — needs to know its own origin
+cors({ origin: ??? })
+```
+
+Most teams end up with a helper that grows over time:
+
+```typescript
+// lib/url.ts — every team has one of these
+function getBaseUrl() {
+  if (typeof window !== 'undefined') return ''
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+  return `http://localhost:${process.env.PORT ?? 3000}`
 }
+
+// But wait — VERCEL_URL is the deployment URL, not your domain.
+// And it doesn't work on the client. So you add more:
+const baseUrl =
+  process.env.NEXT_PUBLIC_VERCEL_ENV === 'production'
+    ? `https://${process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.NEXT_PUBLIC_VERCEL_URL
+      ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+      : `http://localhost:${process.env.PORT ?? 3000}`
+
+// And then Netlify uses different env vars. And Cloudflare uses different ones.
+// And someone forgets the https://. And preview URLs break in production...
 ```
-
-### Default export (object with dot access)
-
-```typescript
-import whichUrl from 'which-url'
-
-whichUrl.appUrl      // "https://myapp.vercel.app"
-whichUrl.href        // "https://myapp.vercel.app"  (alias)
-whichUrl.origin      // "https://myapp.vercel.app"
-whichUrl.hostname    // "myapp.vercel.app"
-whichUrl.host        // "myapp.vercel.app"
-whichUrl.protocol    // "https:"
-whichUrl.port        // ""
-
-whichUrl.env           // "production" | "preview" | "local"
-whichUrl.isProduction  // boolean
-whichUrl.isPreview     // boolean
-whichUrl.isLocal       // boolean
-```
-
-Property names follow the [WHATWG URL spec](https://url.spec.whatwg.org/) — nothing new to learn.
 
 ## How it works
 
-`which-url` reads environment variables that hosting providers set automatically. No configuration needed.
-
-**Resolution priority:**
+Reads environment variables that hosting providers set automatically:
 
 1. `APP_URL` env var (your override — always wins)
-2. Provider auto-detection
-3. `window.location.origin` (browser)
-4. `http://localhost:${PORT || 3000}` (development)
-5. Throws in production if nothing detected
+2. Provider auto-detection (Vercel, Netlify, etc.)
+3. `window.location.origin` (browser fallback)
+4. `http://localhost:${PORT || 3000}` (development fallback)
 
-## Provider support
-
-| Provider | Detection | URL source |
-|----------|-----------|------------|
-| **Vercel** | `VERCEL` | `VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_BRANCH_URL` / `VERCEL_URL` |
-| **Netlify** | `NETLIFY` | `URL` / `DEPLOY_PRIME_URL` / `DEPLOY_URL` |
-| **Cloudflare Pages** | `CF_PAGES` | `CF_PAGES_URL` |
-| **Railway** | `RAILWAY_PUBLIC_DOMAIN` | `RAILWAY_PUBLIC_DOMAIN` |
-| **Fly.io** | `FLY_APP_NAME` | `{app}.fly.dev` |
-| **Render** | `RENDER` | `RENDER_EXTERNAL_URL` |
-| **DigitalOcean** | `DIGITALOCEAN_APP_PLATFORM` | `APP_URL` |
-| **Heroku** | `HEROKU_APP_NAME` | `{app}.herokuapp.com` |
+If nothing is detected in production, the singleton logs a warning and returns empty strings. Call `createUrl()` directly if you want it to throw instead.
 
 ## Override with `APP_URL`
 
-Set `APP_URL` to override auto-detection. Useful for custom domains, tunnels, or unsupported providers.
+Set `APP_URL` when auto-detection isn't enough — custom domains, tunnels, or unsupported providers:
 
 ```bash
 # .env.local
 APP_URL=https://myapp.com
 ```
 
-`NEXT_PUBLIC_APP_URL` also works (for client-side access in Next.js).
+Works with or without protocol (`APP_URL=myapp.com` → `https://myapp.com`).
 
-## Local development
+**Client-side frameworks:** All framework prefixes are supported automatically — `NEXT_PUBLIC_APP_URL`, `VITE_APP_URL`, `PUBLIC_APP_URL`, `NUXT_ENV_APP_URL`, etc.
 
-Zero config — auto-detects `http://localhost:3000` (or `PORT` if set).
+## Platform support
 
-```bash
-# Custom port
-APP_URL=http://localhost:4000
+| Platform | Detection | URL source | Verified |
+|----------|-----------|------------|:--------:|
+| **Vercel** | `VERCEL` | `VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_BRANCH_URL` / `VERCEL_URL` | [x] |
+| **Netlify** | `NETLIFY` | `URL` / `DEPLOY_PRIME_URL` / `DEPLOY_URL` | [ ] |
+| **Cloudflare Pages** | `CF_PAGES` | `CF_PAGES_URL` | [ ] |
+| **Railway** | `RAILWAY_PUBLIC_DOMAIN` | `RAILWAY_PUBLIC_DOMAIN` | [ ] |
+| **Fly.io** | `FLY_APP_NAME` | `{app}.fly.dev` | [ ] |
+| **Render** | `RENDER` | `RENDER_EXTERNAL_URL` | [ ] |
+| **DigitalOcean** | `DIGITALOCEAN_APP_PLATFORM` | `APP_URL` | [ ] |
+| **Heroku** | `HEROKU_APP_NAME` | `{app}.herokuapp.com` | [ ] |
 
-# Custom local domain
-APP_URL=http://myapp.local:3000
+On the client, Vercel's framework-prefixed env vars (`NEXT_PUBLIC_VERCEL_URL`, `VITE_VERCEL_URL`, etc.) are detected automatically.
 
-# Local HTTPS (mkcert)
-APP_URL=https://localhost:3000
+**Help us verify:** If you're using one of these providers, [open an issue](https://github.com/manishrc/which-url/issues) with the output of `import appUrl from 'which-url'; console.log(appUrl)` from your deployment. We'll mark it as verified.
 
-# Tunnel
-APP_URL=https://abc123.ngrok-free.app
-```
-
-For tunnels with dynamic URLs:
-
-```bash
-APP_URL=$(curl -s localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url') npm run dev
-```
-
-## Error handling
-
-In **production**, `which-url` throws if it can't detect the URL — preventing silent misconfiguration (broken OAuth, CORS, emails pointing to localhost).
-
-Use `createUrl` with a fallback to opt into lenient behavior:
+## Examples
 
 ```typescript
-import { createUrl } from 'which-url'
+import { origin, hostname, isProduction } from 'which-url'
 
-const url = createUrl({ fallback: 'https://fallback.example.com' })
-url.href // never throws
+// Better Auth
+betterAuth({ baseURL: origin })
+
+// API calls
+fetch(`${origin}/api/data`)
+
+// CORS
+cors({ origin })
+
+// Cookies
+cookie.domain = hostname
+
+// Environment checks
+if (isProduction) {
+  enableAnalytics()
+}
 ```
 
-In **development**, it always falls back to localhost.
+## Gotchas
 
-## Cloudflare Workers
+### Vercel: Redeploy after assigning a custom domain
+
+Framework-prefixed env vars like `NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL` are inlined into the bundle at **build time** — the bundler replaces references with their literal values. If you assign a custom domain after deploying, the old deployment still has the previous URL baked in. Trigger a new deployment for the updated domain to take effect.
+
+## Advanced
+
+### Tunnels (ngrok, Cloudflare Tunnel)
+
+Tunnel URLs can't be auto-detected — they're external to the app process. Set `APP_URL`:
+
+```bash
+APP_URL=https://abc123.ngrok-free.app npm run dev
+```
+
+### Cloudflare Workers
 
 Cloudflare Workers use runtime `env` bindings instead of `process.env`. Set `APP_URL` in `wrangler.toml`:
 
@@ -136,60 +165,40 @@ Cloudflare Workers use runtime `env` bindings instead of `process.env`. Set `APP
 APP_URL = "https://myapp.workers.dev"
 ```
 
-Modern wrangler polyfills `process.env` from `[vars]`, so `which-url` picks it up automatically. Cloudflare Pages build-time env vars also work.
+Modern wrangler polyfills `process.env` from `[vars]`, so `which-url` picks it up automatically.
 
-## Integrations
+### `createUrl(options?)`
 
-### Better Auth
-
-```typescript
-import { appUrl } from 'which-url'
-import { betterAuth } from 'better-auth'
-
-export const auth = betterAuth({
-  baseURL: appUrl,
-  // ...
-})
-```
-
-### NextAuth / Auth.js
+Re-resolves the URL from the current environment. Unlike the singleton (which catches errors), `createUrl()` throws in production if no URL is detected.
 
 ```typescript
-import { appUrl } from 'which-url'
+import { createUrl } from 'which-url'
 
-// No need to set NEXTAUTH_URL manually
-process.env.NEXTAUTH_URL = appUrl
+const url = createUrl({ fallback: 'https://fallback.example.com' })
+url.origin // never throws
 ```
 
 ## API
 
+### Default export
+
+An object with URL properties and environment helpers.
+
 ### Named exports
 
-| Export | Type | Description |
-|--------|------|-------------|
-| `appUrl` | `string` | Full URL (`https://myapp.vercel.app`) |
-| `href` | `string` | Alias for `appUrl` |
-| `origin` | `string` | Origin (`https://myapp.vercel.app`) |
-| `hostname` | `string` | Hostname (`myapp.vercel.app`) |
-| `host` | `string` | Host with port (`myapp.vercel.app`) |
-| `protocol` | `string` | Protocol (`https:`) |
-| `port` | `string` | Port (empty if default) |
+| Export | Type | Example |
+|--------|------|---------|
+| `origin` | `string` | `"https://myapp.vercel.app"` |
+| `hostname` | `string` | `"myapp.vercel.app"` |
+| `host` | `string` | `"myapp.vercel.app"` or `"localhost:3000"` |
+| `href` | `string` | Same as `origin` |
+| `protocol` | `string` | `"https:"` |
+| `port` | `string` | `""` or `"3000"` |
 | `env` | `AppEnv` | `"production"` \| `"preview"` \| `"local"` |
-| `isProduction` | `boolean` | `true` if production |
-| `isPreview` | `boolean` | `true` if preview/staging |
-| `isLocal` | `boolean` | `true` if local development |
-| `createUrl(options?)` | `function` | Create a new instance with custom options |
-
-### `createUrl(options?)`
-
-```typescript
-createUrl({ fallback?: string }): WhichUrl
-```
-
-Re-resolves the URL from current environment. Use for:
-- Custom fallbacks (never throws)
-- Re-resolution in tests
-- Dynamic configuration
+| `platform` | `Platform` | `"vercel"` \| `"netlify"` \| ... \| `null` |
+| `isProduction` | `boolean` | |
+| `isPreview` | `boolean` | |
+| `isLocal` | `boolean` | |
 
 ## License
 

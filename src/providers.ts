@@ -1,18 +1,21 @@
 import type { ProviderDetector } from "./types"
+import { getVar } from "./env-var"
 
 export const providers: ProviderDetector[] = [
   {
     name: "vercel",
-    detect: (env) => !!env.VERCEL,
+    detect: (env) => !!env.VERCEL || !!getVar(env, "VERCEL_ENV"),
     resolveUrl: (env) => {
-      if (env.VERCEL_ENV === "production") {
-        return env.VERCEL_PROJECT_PRODUCTION_URL || env.VERCEL_URL || null
+      const vercelEnv = getVar(env, "VERCEL_ENV")
+      if (vercelEnv === "production") {
+        return getVar(env, "VERCEL_PROJECT_PRODUCTION_URL") || getVar(env, "VERCEL_URL") || null
       }
-      return env.VERCEL_BRANCH_URL || env.VERCEL_URL || null
+      return getVar(env, "VERCEL_BRANCH_URL") || getVar(env, "VERCEL_URL") || null
     },
     resolveEnv: (env) => {
-      if (env.VERCEL_ENV === "production") return "production"
-      if (env.VERCEL_ENV === "preview") return "preview"
+      const vercelEnv = getVar(env, "VERCEL_ENV")
+      if (vercelEnv === "production") return "production"
+      if (vercelEnv === "preview") return "preview"
       return "local"
     },
   },

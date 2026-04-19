@@ -50,6 +50,42 @@ describe("Vercel provider", () => {
     expect(vercel.resolveEnv({ VERCEL_ENV: "preview" })).toBe("preview")
     expect(vercel.resolveEnv({ VERCEL_ENV: "development" })).toBe("local")
   })
+
+  test("detects Vercel from NEXT_PUBLIC_VERCEL_ENV (client-side Next.js)", () => {
+    const vercel = findProvider("vercel")
+    expect(vercel.detect({ NEXT_PUBLIC_VERCEL_ENV: "production" })).toBe(true)
+  })
+
+  test("detects Vercel from VITE_VERCEL_ENV (client-side Vite)", () => {
+    const vercel = findProvider("vercel")
+    expect(vercel.detect({ VITE_VERCEL_ENV: "preview" })).toBe(true)
+  })
+
+  test("resolves production URL from NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL", () => {
+    const vercel = findProvider("vercel")
+    expect(
+      vercel.resolveUrl({
+        NEXT_PUBLIC_VERCEL_ENV: "production",
+        NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL: "myapp.com",
+      })
+    ).toBe("myapp.com")
+  })
+
+  test("resolves preview URL from VITE_VERCEL_BRANCH_URL", () => {
+    const vercel = findProvider("vercel")
+    expect(
+      vercel.resolveUrl({
+        VITE_VERCEL_ENV: "preview",
+        VITE_VERCEL_BRANCH_URL: "myapp-git-feat.vercel.app",
+      })
+    ).toBe("myapp-git-feat.vercel.app")
+  })
+
+  test("resolves env from PUBLIC_VERCEL_ENV (Astro client)", () => {
+    const vercel = findProvider("vercel")
+    expect(vercel.resolveEnv({ PUBLIC_VERCEL_ENV: "production" })).toBe("production")
+    expect(vercel.resolveEnv({ PUBLIC_VERCEL_ENV: "preview" })).toBe("preview")
+  })
 })
 
 describe("Netlify provider", () => {

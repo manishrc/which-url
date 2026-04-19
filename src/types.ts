@@ -1,7 +1,17 @@
 export type AppEnv = "production" | "preview" | "local"
 
+export type Platform =
+  | "vercel"
+  | "netlify"
+  | "cloudflare"
+  | "railway"
+  | "fly"
+  | "render"
+  | "digitalocean"
+  | "heroku"
+  | null
+
 export interface WhichUrl {
-  appUrl: string
   href: string
   origin: string
   hostname: string
@@ -9,6 +19,7 @@ export interface WhichUrl {
   protocol: string
   port: string
   env: AppEnv
+  platform: Platform
   isProduction: boolean
   isPreview: boolean
   isLocal: boolean

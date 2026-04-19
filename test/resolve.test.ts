@@ -23,6 +23,14 @@ beforeEach(() => {
   delete process.env.DIGITALOCEAN_APP_PLATFORM
   delete process.env.HEROKU_APP_NAME
   delete process.env.PORT
+  // Framework-prefixed vars
+  delete process.env.VITE_APP_URL
+  delete process.env.PUBLIC_APP_URL
+  delete process.env.NUXT_ENV_APP_URL
+  delete process.env.NEXT_PUBLIC_VERCEL_ENV
+  delete process.env.VITE_VERCEL_ENV
+  delete process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL
+  delete process.env.VITE_VERCEL_BRANCH_URL
   // Default to non-production for safety
   process.env.NODE_ENV = "development"
 })
@@ -90,5 +98,32 @@ describe("resolveUrl", () => {
   test("strips trailing slash from APP_URL", () => {
     process.env.APP_URL = "https://custom.example.com/"
     expect(resolveUrl()).toBe("https://custom.example.com")
+  })
+
+  test("VITE_APP_URL override works", () => {
+    process.env.VITE_APP_URL = "https://vite-app.example.com"
+    expect(resolveUrl()).toBe("https://vite-app.example.com")
+  })
+
+  test("PUBLIC_APP_URL override works (Astro)", () => {
+    process.env.PUBLIC_APP_URL = "https://astro-app.example.com"
+    expect(resolveUrl()).toBe("https://astro-app.example.com")
+  })
+
+  test("NUXT_ENV_APP_URL override works", () => {
+    process.env.NUXT_ENV_APP_URL = "https://nuxt-app.example.com"
+    expect(resolveUrl()).toBe("https://nuxt-app.example.com")
+  })
+
+  test("detects Vercel from NEXT_PUBLIC_VERCEL_ENV on client", () => {
+    process.env.NEXT_PUBLIC_VERCEL_ENV = "production"
+    process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL = "myapp.com"
+    expect(resolveUrl()).toBe("https://myapp.com")
+  })
+
+  test("detects Vercel from VITE_VERCEL_ENV on client", () => {
+    process.env.VITE_VERCEL_ENV = "preview"
+    process.env.VITE_VERCEL_BRANCH_URL = "myapp-git-feat.vercel.app"
+    expect(resolveUrl()).toBe("https://myapp-git-feat.vercel.app")
   })
 })

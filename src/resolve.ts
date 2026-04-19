@@ -1,12 +1,13 @@
 import { providers } from "./providers"
 import { normalizeUrl } from "./normalize"
-import type { CreateUrlOptions } from "./types"
+import { getVar, getEnv } from "./env-var"
+import type { CreateUrlOptions, Platform } from "./types"
 
 export function resolveUrl(options?: CreateUrlOptions): string {
-  const env = typeof process !== "undefined" ? process.env : {}
+  const env = getEnv()
 
-  // 1. User override
-  const override = env.APP_URL || env.NEXT_PUBLIC_APP_URL
+  // 1. User override — checks APP_URL, NEXT_PUBLIC_APP_URL, VITE_APP_URL, etc.
+  const override = getVar(env, "APP_URL")
   if (override) return normalizeUrl(override)
 
   // 2. Provider detection
@@ -38,4 +39,14 @@ export function resolveUrl(options?: CreateUrlOptions): string {
   throw new Error(
     "which-url: Cannot detect app URL. Set APP_URL environment variable."
   )
+}
+
+export function resolvePlatform(): Platform {
+  const env = getEnv()
+  for (const p of providers) {
+    if (p.detect(env)) {
+      return p.name as Platform
+    }
+  }
+  return null
 }

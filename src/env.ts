@@ -1,14 +1,16 @@
 import { providers } from "./providers"
+import { getVar, getEnv } from "./env-var"
 import type { AppEnv } from "./types"
 
 const validEnvs: AppEnv[] = ["production", "preview", "local"]
 
 export function resolveEnv(): AppEnv {
-  const env = typeof process !== "undefined" ? process.env : {}
+  const env = getEnv()
 
-  // 1. Explicit override
-  if (env.APP_ENV && validEnvs.includes(env.APP_ENV as AppEnv)) {
-    return env.APP_ENV as AppEnv
+  // 1. Explicit override — checks APP_ENV, NEXT_PUBLIC_APP_ENV, VITE_APP_ENV, etc.
+  const appEnv = getVar(env, "APP_ENV")
+  if (appEnv && validEnvs.includes(appEnv as AppEnv)) {
+    return appEnv as AppEnv
   }
 
   // 2. NODE_ENV=development → local
