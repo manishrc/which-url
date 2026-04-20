@@ -1,9 +1,19 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test"
+import { resolveUrl } from "../src/resolve"
+import { resolveEnv } from "../src/env"
 
 let savedEnv: NodeJS.ProcessEnv
 
 beforeEach(() => {
   savedEnv = { ...process.env }
+  delete process.env.APP_URL
+  delete process.env.NEXT_PUBLIC_APP_URL
+  delete process.env.VERCEL
+  delete process.env.VERCEL_ENV
+  delete process.env.VERCEL_URL
+  delete process.env.VERCEL_PROJECT_PRODUCTION_URL
+  delete process.env.VERCEL_BRANCH_URL
+  process.env.NODE_ENV = "development"
 })
 
 afterEach(() => {
@@ -11,72 +21,59 @@ afterEach(() => {
 })
 
 describe("which-url public API", () => {
-  test("default export is an object with WHATWG URL properties", async () => {
+  test("resolves URL with correct properties", () => {
     process.env.APP_URL = "https://myapp.vercel.app"
-    // Dynamic import to pick up env changes
-    const mod = await import("../src/index")
-    const thisApp = mod.createUrl()
+    const { url } = resolveUrl()
+    const parsed = new URL(url)
 
-    expect(thisApp.href).toBe("https://myapp.vercel.app")
-    expect(thisApp.origin).toBe("https://myapp.vercel.app")
-    expect(thisApp.hostname).toBe("myapp.vercel.app")
-    expect(thisApp.host).toBe("myapp.vercel.app")
-    expect(thisApp.protocol).toBe("https:")
-    expect(thisApp.port).toBe("")
+    expect(parsed.origin).toBe("https://myapp.vercel.app")
+    expect(parsed.hostname).toBe("myapp.vercel.app")
+    expect(parsed.host).toBe("myapp.vercel.app")
+    expect(parsed.protocol).toBe("https:")
+    expect(parsed.port).toBe("")
   })
 
-  test("default export has env helpers", async () => {
-    process.env.APP_URL = "https://myapp.vercel.app"
+  test("resolves env from provider", () => {
+    process.env.NODE_ENV = "production"
     process.env.VERCEL = "1"
     process.env.VERCEL_ENV = "preview"
-    const mod = await import("../src/index")
-    const thisApp = mod.createUrl()
-
-    expect(thisApp.env).toBe("preview")
-    expect(thisApp.isProduction).toBe(false)
-    expect(thisApp.isPreview).toBe(true)
-    expect(thisApp.isLocal).toBe(false)
+    expect(resolveEnv()).toBe("preview")
   })
 
-  test("createUrl with fallback never throws in production", async () => {
-    process.env.NODE_ENV = "production"
-    delete process.env.APP_URL
-    delete process.env.VERCEL
-    const mod = await import("../src/index")
-
-    expect(() =>
-      mod.createUrl({ fallback: "https://fallback.example.com" })
-    ).not.toThrow()
-
-    const result = mod.createUrl({ fallback: "https://fallback.example.com" })
-    expect(result.href).toBe("https://fallback.example.com")
-  })
-
-  test("createUrl with localhost port", async () => {
+  test("resolves localhost with custom port", () => {
     process.env.NODE_ENV = "development"
     process.env.PORT = "4567"
-    delete process.env.APP_URL
-    delete process.env.VERCEL
-    const mod = await import("../src/index")
-    const result = mod.createUrl()
+    const { url } = resolveUrl()
+    const parsed = new URL(url)
 
-    expect(result.href).toBe("http://localhost:4567")
-    expect(result.hostname).toBe("localhost")
-    expect(result.port).toBe("4567")
-    expect(result.protocol).toBe("http:")
+    expect(parsed.origin).toBe("http://localhost:4567")
+    expect(parsed.hostname).toBe("localhost")
+    expect(parsed.port).toBe("4567")
+    expect(parsed.protocol).toBe("http:")
   })
 
-  test("named exports are plain strings and booleans", async () => {
-    process.env.APP_URL = "https://myapp.vercel.app"
-    process.env.NODE_ENV = "development"
-    const mod = await import("../src/index")
-    const thisApp = mod.createUrl()
+  test("throws in production when no URL detected", () => {
+    process.env.NODE_ENV = "production"
+    expect(() => resolveUrl()).toThrow("which-url: Cannot detect app URL")
+  })
 
-    // Verify types at runtime — these should be primitives
-    expect(typeof thisApp.href).toBe("string")
-    expect(typeof thisApp.hostname).toBe("string")
-    expect(typeof thisApp.isProduction).toBe("boolean")
-    expect(typeof thisApp.isPreview).toBe("boolean")
-    expect(typeof thisApp.isLocal).toBe("boolean")
+  test("source is override when APP_URL is set", () => {
+    process.env.APP_URL = "https://myapp.com"
+    const { source } = resolveUrl()
+    expect(source).toBe("override")
+  })
+
+  test("source is provider when detected from platform", () => {
+    process.env.VERCEL = "1"
+    process.env.VERCEL_ENV = "production"
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = "myapp.com"
+    const { source } = resolveUrl()
+    expect(source).toBe("provider")
+  })
+
+  test("source is fallback in development", () => {
+    process.env.NODE_ENV = "development"
+    const { source } = resolveUrl()
+    expect(source).toBe("fallback")
   })
 })

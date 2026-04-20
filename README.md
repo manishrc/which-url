@@ -167,15 +167,13 @@ APP_URL = "https://myapp.workers.dev"
 
 Modern wrangler polyfills `process.env` from `[vars]`, so `which-url` picks it up automatically.
 
-### `createUrl(options?)`
-
-Re-resolves the URL from the current environment. Unlike the singleton (which catches errors), `createUrl()` throws in production if no URL is detected.
+### Debugging
 
 ```typescript
-import { createUrl } from 'which-url'
+import { debug } from 'which-url'
 
-const url = createUrl({ fallback: 'https://fallback.example.com' })
-url.origin // never throws
+console.log(debug)
+// "platform=vercel | source=provider | url=https://myapp.com | env=production"
 ```
 
 ## API
@@ -196,6 +194,8 @@ An object with URL properties and environment helpers.
 | `port` | `string` | `""` or `"3000"` |
 | `env` | `AppEnv` | `"production"` \| `"preview"` \| `"local"` |
 | `platform` | `Platform` | `"vercel"` \| `"netlify"` \| ... \| `null` |
+| `source` | `Source` | `"override"` \| `"provider"` \| `"browser"` \| `"fallback"` \| `null` |
+| `debug` | `string` | `"platform=vercel \| source=provider \| url=https://myapp.com \| env=production"` |
 | `isProduction` | `boolean` | |
 | `isPreview` | `boolean` | |
 | `isLocal` | `boolean` | |

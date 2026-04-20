@@ -11,6 +11,8 @@ export type Platform =
   | "heroku"
   | null
 
+export type Source = "override" | "provider" | "browser" | "fallback" | null
+
 export interface WhichUrl {
   href: string
   origin: string
@@ -20,13 +22,11 @@ export interface WhichUrl {
   port: string
   env: AppEnv
   platform: Platform
+  source: Source
+  debug: string
   isProduction: boolean
   isPreview: boolean
   isLocal: boolean
-}
-
-export interface CreateUrlOptions {
-  fallback?: string
 }
 
 export interface ProviderDetector {
