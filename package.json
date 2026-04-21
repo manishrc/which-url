@@ -1,6 +1,6 @@
 {
   "name": "which-url",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Auto-detect your app's URL across hosting providers. Zero config.",
   "type": "module",
   "exports": {

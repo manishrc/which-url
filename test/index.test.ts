@@ -13,6 +13,7 @@ beforeEach(() => {
   delete process.env.VERCEL_URL
   delete process.env.VERCEL_PROJECT_PRODUCTION_URL
   delete process.env.VERCEL_BRANCH_URL
+  delete process.env.PORTLESS_URL
   process.env.NODE_ENV = "development"
 })
 
@@ -37,7 +38,7 @@ describe("which-url public API", () => {
     process.env.NODE_ENV = "production"
     process.env.VERCEL = "1"
     process.env.VERCEL_ENV = "preview"
-    expect(resolveEnv()).toBe("preview")
+    expect(resolveEnv().env).toBe("preview")
   })
 
   test("resolves localhost with custom port", () => {
@@ -57,23 +58,45 @@ describe("which-url public API", () => {
     expect(() => resolveUrl()).toThrow("which-url: Cannot detect app URL")
   })
 
-  test("source is override when APP_URL is set", () => {
+  test("debug label includes override source", () => {
     process.env.APP_URL = "https://myapp.com"
-    const { source } = resolveUrl()
-    expect(source).toBe("override")
+    const { debugLabel } = resolveUrl()
+    expect(debugLabel).toContain("[override]")
+    expect(debugLabel).toContain("APP_URL=https://myapp.com")
   })
 
-  test("source is provider when detected from platform", () => {
+  test("debug label includes provider source", () => {
     process.env.VERCEL = "1"
     process.env.VERCEL_ENV = "production"
     process.env.VERCEL_PROJECT_PRODUCTION_URL = "myapp.com"
-    const { source } = resolveUrl()
-    expect(source).toBe("provider")
+    const { debugLabel } = resolveUrl()
+    expect(debugLabel).toContain("[provider:vercel]")
   })
 
-  test("source is fallback in development", () => {
+  test("debug label includes fallback with port", () => {
     process.env.NODE_ENV = "development"
-    const { source } = resolveUrl()
-    expect(source).toBe("fallback")
+    process.env.PORT = "4091"
+    const { debugLabel } = resolveUrl()
+    expect(debugLabel).toContain("[fallback]")
+    expect(debugLabel).toContain("PORT=4091")
+  })
+
+  test("debug label includes portless source", () => {
+    process.env.PORTLESS_URL = "https://myapp.localhost"
+    const { url, debugLabel } = resolveUrl()
+    expect(url).toBe("https://myapp.localhost")
+    expect(debugLabel).toContain("[portless]")
+    expect(debugLabel).toContain("PORTLESS_URL=https://myapp.localhost")
+  })
+
+  test("debug is non-enumerable on resolved object", () => {
+    process.env.APP_URL = "https://myapp.com"
+    const mod = require("../src/index")
+    const appUrl = mod.default
+    // debug should not appear in JSON.stringify
+    const json = JSON.parse(JSON.stringify(appUrl))
+    expect(json.debug).toBeUndefined()
+    // but should be accessible directly
+    expect(typeof appUrl.debug).toBe("string")
   })
 })

@@ -91,6 +91,8 @@ function readStatic(name: EnvVarName): string | undefined {
         || process.env.REDWOOD_ENV_APP_ENV
         || process.env.SANITY_STUDIO_APP_ENV
         || undefined
+    default:
+      return undefined
   }
 }
 
@@ -108,8 +110,10 @@ export function getVar(
 ): string | undefined {
   // Try static references first — these get inlined by bundlers
   if (typeof process !== "undefined" && process?.env && env === process.env) {
-    const val = readStatic(name as EnvVarName)
-    if (val) return val
+    if ((ENV_VARS as readonly string[]).includes(name)) {
+      const val = readStatic(name as EnvVarName)
+      if (val) return val
+    }
   }
 
   // Dynamic fallback — works in tests and on the server where process.env

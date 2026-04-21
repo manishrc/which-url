@@ -148,6 +148,18 @@ Framework-prefixed env vars like `NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL` are
 
 ## Advanced
 
+### Portless
+
+Zero config — [portless](https://portless.sh) sets `PORTLESS_URL` and `which-url` picks it up automatically.
+
+```json
+"dev": "portless run next dev"
+```
+
+```
+origin → https://myapp.localhost
+```
+
 ### Tunnels (ngrok, Cloudflare Tunnel)
 
 Tunnel URLs can't be auto-detected — they're external to the app process. Set `APP_URL`:
@@ -170,10 +182,13 @@ Modern wrangler polyfills `process.env` from `[vars]`, so `which-url` picks it u
 ### Debugging
 
 ```typescript
-import { debug } from 'which-url'
+import appUrl from 'which-url'
 
-console.log(debug)
-// "platform=vercel | source=provider | url=https://myapp.com | env=production"
+console.log(appUrl.debug)
+// "[provider:vercel] url=myapp.com | env=production (vercel:production)"
+// "[override] APP_URL=https://custom.com | env=production (NODE_ENV=production)"
+// "[portless] PORTLESS_URL=https://myapp.localhost | env=local (NODE_ENV=development)"
+// "[fallback] PORT=3004 | env=local (NODE_ENV=development)"
 ```
 
 ## API
@@ -194,8 +209,9 @@ An object with URL properties and environment helpers.
 | `port` | `string` | `""` or `"3000"` |
 | `env` | `AppEnv` | `"production"` \| `"preview"` \| `"local"` |
 | `platform` | `Platform` | `"vercel"` \| `"netlify"` \| ... \| `null` |
-| `source` | `Source` | `"override"` \| `"provider"` \| `"browser"` \| `"fallback"` \| `null` |
-| `debug` | `string` | `"platform=vercel \| source=provider \| url=https://myapp.com \| env=production"` |
+| `debug`* | `string` | `"[provider:vercel] url=myapp.com \| env=production (vercel:production)"` |
+
+\* `debug` is non-enumerable — excluded from `JSON.stringify` to avoid React hydration mismatches. Access via `appUrl.debug`.
 | `isProduction` | `boolean` | |
 | `isPreview` | `boolean` | |
 | `isLocal` | `boolean` | |

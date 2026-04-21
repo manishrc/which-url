@@ -29,35 +29,35 @@ describe("resolveEnv", () => {
   test("APP_ENV override takes priority", () => {
     process.env.APP_ENV = "preview"
     process.env.NODE_ENV = "production"
-    expect(resolveEnv()).toBe("preview")
+    expect(resolveEnv().env).toBe("preview")
   })
 
   test("NODE_ENV=development returns local", () => {
     process.env.NODE_ENV = "development"
-    expect(resolveEnv()).toBe("local")
+    expect(resolveEnv().env).toBe("local")
   })
 
   test("detects Vercel environment", () => {
     process.env.NODE_ENV = "production"
     process.env.VERCEL = "1"
     process.env.VERCEL_ENV = "preview"
-    expect(resolveEnv()).toBe("preview")
+    expect(resolveEnv().env).toBe("preview")
   })
 
   test("NODE_ENV=production with no provider returns production", () => {
     process.env.NODE_ENV = "production"
-    expect(resolveEnv()).toBe("production")
+    expect(resolveEnv().env).toBe("production")
   })
 
   test("no NODE_ENV and no provider returns local", () => {
     delete process.env.NODE_ENV
-    expect(resolveEnv()).toBe("local")
+    expect(resolveEnv().env).toBe("local")
   })
 
   test("rejects invalid APP_ENV values", () => {
     process.env.APP_ENV = "staging"
     process.env.NODE_ENV = "production"
     // Invalid APP_ENV should be ignored, fall through to NODE_ENV
-    expect(resolveEnv()).toBe("production")
+    expect(resolveEnv().env).toBe("production")
   })
 })
