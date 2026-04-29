@@ -160,6 +160,8 @@ Zero config — [portless](https://portless.sh) sets `PORTLESS_URL` and `which-u
 origin → https://myapp.localhost
 ```
 
+When sharing via Tailscale (`portless run --tailscale`), `PORTLESS_TAILSCALE_URL` takes priority so `origin` returns the publicly-reachable URL.
+
 ### Tunnels (ngrok, Cloudflare Tunnel)
 
 Tunnel URLs can't be auto-detected — they're external to the app process. Set `APP_URL`:

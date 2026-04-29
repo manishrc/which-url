@@ -14,6 +14,7 @@ beforeEach(() => {
   delete process.env.VERCEL_PROJECT_PRODUCTION_URL
   delete process.env.VERCEL_BRANCH_URL
   delete process.env.PORTLESS_URL
+  delete process.env.PORTLESS_TAILSCALE_URL
   process.env.NODE_ENV = "development"
 })
 
@@ -87,6 +88,22 @@ describe("which-url public API", () => {
     expect(url).toBe("https://myapp.localhost")
     expect(debugLabel).toContain("[portless]")
     expect(debugLabel).toContain("PORTLESS_URL=https://myapp.localhost")
+  })
+
+  test("PORTLESS_TAILSCALE_URL wins over PORTLESS_URL", () => {
+    process.env.PORTLESS_URL = "https://myapp.localhost"
+    process.env.PORTLESS_TAILSCALE_URL = "https://myapp.your-tailnet.ts.net"
+    const { url, debugLabel } = resolveUrl()
+    expect(url).toBe("https://myapp.your-tailnet.ts.net")
+    expect(debugLabel).toContain("[portless:tailscale]")
+    expect(debugLabel).toContain("PORTLESS_TAILSCALE_URL=https://myapp.your-tailnet.ts.net")
+  })
+
+  test("APP_URL still wins over PORTLESS_TAILSCALE_URL", () => {
+    process.env.APP_URL = "https://override.example.com"
+    process.env.PORTLESS_TAILSCALE_URL = "https://myapp.your-tailnet.ts.net"
+    const { url } = resolveUrl()
+    expect(url).toBe("https://override.example.com")
   })
 
   test("debug is non-enumerable on resolved object", () => {

@@ -15,8 +15,13 @@ export function resolveUrl(): ResolveResult {
   const override = getVar(env, "APP_URL")
   if (override) return { url: normalizeUrl(override), debugLabel: `[override] APP_URL=${override}` }
 
-  // 2. Portless (local dev proxy)
-  if (env.PORTLESS_URL) return { url: env.PORTLESS_URL, debugLabel: `[portless] PORTLESS_URL=${env.PORTLESS_URL}` }
+  // 2. Portless — prefer Tailscale URL (publicly accessible) over local .localhost
+  if (env.PORTLESS_TAILSCALE_URL) {
+    return { url: env.PORTLESS_TAILSCALE_URL, debugLabel: `[portless:tailscale] PORTLESS_TAILSCALE_URL=${env.PORTLESS_TAILSCALE_URL}` }
+  }
+  if (env.PORTLESS_URL) {
+    return { url: env.PORTLESS_URL, debugLabel: `[portless] PORTLESS_URL=${env.PORTLESS_URL}` }
+  }
 
   // 3. Provider detection
   for (const p of providers) {
