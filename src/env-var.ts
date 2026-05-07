@@ -138,7 +138,7 @@ export function getVar(
 }
 
 export function getEnv(
-  override?: Record<string, unknown>
+  override?: object
 ): Record<string, string | undefined> {
   if (override !== undefined) {
     return filterStrings(override)
@@ -152,11 +152,10 @@ export function getEnv(
 // Workers bindings (KV, DO, R2, service bindings) come through `env` as objects.
 // URL detection only works on strings, so drop everything else at the boundary.
 function filterStrings(
-  source: Record<string, unknown>
+  source: object
 ): Record<string, string | undefined> {
   const out: Record<string, string | undefined> = {}
-  for (const key in source) {
-    const value = source[key]
+  for (const [key, value] of Object.entries(source)) {
     if (typeof value === "string") out[key] = value
   }
   return out

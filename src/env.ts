@@ -9,7 +9,7 @@ export interface EnvResult {
   debugLabel: string
 }
 
-export function resolveEnv(envOverride?: Record<string, unknown>): EnvResult {
+export function resolveEnv(envOverride?: object): EnvResult {
   const env = getEnv(envOverride)
 
   // 1. Explicit override — checks APP_ENV, NEXT_PUBLIC_APP_ENV, VITE_APP_ENV, etc.

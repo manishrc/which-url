@@ -1,6 +1,6 @@
 {
   "name": "which-url",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "Auto-detect your app's URL across hosting providers. Zero config.",
   "type": "module",
   "exports": {
@@ -12,7 +12,11 @@
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist/index.js",
+    "dist/index.d.ts",
+    "dist/types.d.ts"
+  ],
   "sideEffects": false,
   "keywords": ["url", "base-url", "vercel", "netlify", "cloudflare", "railway", "hosting", "auto-detect", "which-url"],
   "author": {
@@ -25,7 +29,7 @@
   },
   "license": "MIT",
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --format esm && tsc --emitDeclarationOnly --outDir dist",
+    "build": "bun build src/index.ts --outdir dist --format esm --minify && tsc --emitDeclarationOnly --outDir dist",
     "test": "bun test",
     "prepublishOnly": "bun run build"
   },

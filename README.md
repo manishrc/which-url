@@ -261,7 +261,7 @@ Strict resolver function. It resolves when called and throws if no URL can be de
 | `isProduction` | `boolean` | |
 | `isPreview` | `boolean` | |
 | `isLocal` | `boolean` | |
-| `createUrl` | `(options?: { env?: Record<string, unknown> }) => WhichUrlWithDebug` | strict resolver |
+| `createUrl` | `(options?: { env?: object }) => WhichUrlWithDebug` | strict resolver |
 
 \* `debug` is non-enumerable on the default export and objects returned by `createUrl()` — excluded from `JSON.stringify` to avoid React hydration mismatches. It is also available as a named export.
 

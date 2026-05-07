@@ -52,7 +52,7 @@ export interface CreateUrlOptions {
    * entries participate in URL detection — non-string Workers bindings
    * (KV namespaces, Durable Objects, R2 buckets, service bindings) are dropped.
    */
-  env?: Record<string, unknown>
+  env?: object
 }
 
 export interface ProviderDetector {
