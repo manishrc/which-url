@@ -20,7 +20,7 @@ Preview       https://myapp-git-feat.vercel.app     "preview"
 Production    https://myapp.com                     "production"
 ```
 
-Works across environments (local, preview, production), runtimes (server, client, edge), and [platforms](#platform-support).
+Works across environments (local, preview, production), browser bundles, Node/Bun servers, and edge runtimes that expose compatible env vars through `process.env` or build-time public env replacement.
 
 The default export gives you everything as an object:
 
@@ -85,7 +85,31 @@ Reads environment variables that hosting providers set automatically:
 3. `window.location.origin` (browser fallback)
 4. `http://localhost:${PORT || 3000}` (development fallback)
 
-If nothing is detected in production, the singleton logs a warning and returns empty strings. Call `createUrl()` directly if you want it to throw instead.
+When you call `createUrl({ env })`, the passed object replaces `process.env` as the source for steps 1–2.
+
+If nothing is detected in production, the default singleton returns empty URL strings so imports stay safe in tests, client bundles, and build tools. Call `createUrl()` directly when a missing URL should throw.
+
+## Strict mode with `createUrl()`
+
+Use the default export or named constants for convenience:
+
+```typescript
+import { origin } from 'which-url'
+```
+
+Use `createUrl()` for production-critical configuration like auth, CORS, emails, and webhooks:
+
+```typescript
+import { createUrl } from 'which-url'
+
+const appUrl = createUrl()
+
+auth({ baseURL: appUrl.origin })
+```
+
+`createUrl()` resolves fresh environment values when called. If no URL can be detected in production, it throws with instructions to set `APP_URL`.
+
+For runtimes that pass env as an argument (e.g. Cloudflare Workers), call `createUrl({ env })` and the passed object replaces `process.env` for that resolution. See [Cloudflare Workers](#cloudflare-workers) below.
 
 ## Override with `APP_URL`
 
@@ -172,14 +196,32 @@ APP_URL=https://abc123.ngrok-free.app npm run dev
 
 ### Cloudflare Workers
 
-Cloudflare Workers use runtime `env` bindings instead of `process.env`. Set `APP_URL` in `wrangler.toml`:
+Cloudflare Workers pass config through the `env` argument to `fetch`, not `process.env`. Pass it to `createUrl({ env })`:
 
-```toml
-[vars]
-APP_URL = "https://myapp.workers.dev"
+```typescript
+import { createUrl } from "which-url"
+
+export default {
+  async fetch(request: Request, env: Env) {
+    const appUrl = createUrl({ env })
+
+    return Response.json({ origin: appUrl.origin, env: appUrl.env })
+  },
+}
 ```
 
-Modern wrangler polyfills `process.env` from `[vars]`, so `which-url` picks it up automatically.
+```toml
+# wrangler.toml
+[vars]
+APP_URL = "https://api.example.com"
+APP_ENV = "production"
+```
+
+Non-string bindings (KV, Durable Objects, R2, service bindings) are ignored automatically — only string `[vars]` participate in URL detection.
+
+> ⚠️ The default singleton (`import appUrl from "which-url"`) and named exports (`origin`, `env`, etc.) resolve at **module load**, before your `fetch` handler runs. On Workers they will not see your `[vars]`. Use `createUrl({ env })` from inside your handler.
+
+If you're on `nodejs_compat` and prefer `process.env`, the default singleton works too — but `createUrl({ env })` is the runtime-native path and doesn't require the compat flag.
 
 ### Debugging
 
@@ -197,7 +239,11 @@ console.log(appUrl.debug)
 
 ### Default export
 
-An object with URL properties and environment helpers.
+An import-safe singleton object with URL properties and environment helpers. It resolves once when the package is imported.
+
+### `createUrl()`
+
+Strict resolver function. It resolves when called and throws if no URL can be detected.
 
 ### Named exports
 
@@ -212,11 +258,12 @@ An object with URL properties and environment helpers.
 | `env` | `AppEnv` | `"production"` \| `"preview"` \| `"local"` |
 | `platform` | `Platform` | `"vercel"` \| `"netlify"` \| ... \| `null` |
 | `debug`* | `string` | `"[provider:vercel] url=myapp.com \| env=production (vercel:production)"` |
-
-\* `debug` is non-enumerable — excluded from `JSON.stringify` to avoid React hydration mismatches. Access via `appUrl.debug`.
 | `isProduction` | `boolean` | |
 | `isPreview` | `boolean` | |
 | `isLocal` | `boolean` | |
+| `createUrl` | `(options?: { env?: Record<string, unknown> }) => WhichUrlWithDebug` | strict resolver |
+
+\* `debug` is non-enumerable on the default export and objects returned by `createUrl()` — excluded from `JSON.stringify` to avoid React hydration mismatches. It is also available as a named export.
 
 ## License
 

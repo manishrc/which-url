@@ -1,12 +1,23 @@
 import { resolveUrl, resolvePlatform } from "./resolve"
 import { resolveEnv } from "./env"
-import type { WhichUrlWithDebug, AppEnv, Platform } from "./types"
+import type { WhichUrlWithDebug, AppEnv, Platform, CreateUrlOptions } from "./types"
 
-function resolve(): WhichUrlWithDebug {
-  const { url, debugLabel: urlDebug } = resolveUrl()
+function makeDebugNonEnumerable(result: WhichUrlWithDebug): WhichUrlWithDebug {
+  Object.defineProperty(result, "debug", {
+    value: result.debug,
+    enumerable: false,
+    configurable: false,
+  })
+
+  return result
+}
+
+export function createUrl(options?: CreateUrlOptions): WhichUrlWithDebug {
+  const envOverride = options?.env
+  const { url, debugLabel: urlDebug } = resolveUrl(envOverride)
   const parsed = new URL(url)
-  const { env, debugLabel: envDebug } = resolveEnv()
-  const platform = resolvePlatform()
+  const { env, debugLabel: envDebug } = resolveEnv(envOverride)
+  const platform = resolvePlatform(envOverride)
   const debug = `${urlDebug} | env=${env} (${envDebug})`
 
   const result: WhichUrlWithDebug = {
@@ -24,46 +35,46 @@ function resolve(): WhichUrlWithDebug {
     isLocal: env === "local",
   }
 
-  // Make debug non-enumerable so JSON.stringify skips it.
-  // Prevents React hydration mismatch when rendering the whole object
-  // (server resolves via env vars, client via window.location — same URL, different debug).
-  Object.defineProperty(result, "debug", {
-    value: debug,
-    enumerable: false,
-    configurable: false,
-  })
-
-  return result
+  return makeDebugNonEnumerable(result)
 }
 
-// Eager singleton — warn if resolution fails at import time
-let _resolved: WhichUrlWithDebug
-try {
-  _resolved = resolve()
-} catch (e) {
-  console.warn(
-    `[which-url] Could not detect app URL. Set APP_URL (e.g. APP_URL=https://myapp.com or APP_URL=myapp.com)`
-  )
-  const fallback = {
+function createFallback(error: unknown): WhichUrlWithDebug {
+  const message = error instanceof Error ? error.message : "resolution failed"
+  let resolvedEnv: AppEnv = "local"
+  let envDebug = "default"
+
+  try {
+    const result = resolveEnv()
+    resolvedEnv = result.env
+    envDebug = result.debugLabel
+  } catch {
+    // Keep the fallback import-safe even if future env resolution changes.
+  }
+
+  const fallback: WhichUrlWithDebug = {
     href: "",
     origin: "",
     hostname: "",
     host: "",
     protocol: "",
     port: "",
-    env: "local" as const,
-    platform: null,
-    debug: "[error] resolution failed",
-    isProduction: false,
-    isPreview: false,
-    isLocal: true,
+    env: resolvedEnv,
+    platform: resolvePlatform(),
+    debug: `[error] ${message} | env=${resolvedEnv} (${envDebug})`,
+    isProduction: resolvedEnv === "production",
+    isPreview: resolvedEnv === "preview",
+    isLocal: resolvedEnv === "local",
   }
-  Object.defineProperty(fallback, "debug", {
-    value: "[error] resolution failed",
-    enumerable: false,
-    configurable: false,
-  })
-  _resolved = fallback as WhichUrlWithDebug
+
+  return makeDebugNonEnumerable(fallback)
+}
+
+// Eager singleton — convenient named exports should stay import-safe.
+let _resolved: WhichUrlWithDebug
+try {
+  _resolved = createUrl()
+} catch (e) {
+  _resolved = createFallback(e)
 }
 
 /** Full URL including protocol — `"https://myapp.com"` */
@@ -82,6 +93,8 @@ export const port: string = _resolved.port
 export const env: AppEnv = _resolved.env
 /** Detected hosting platform — `"vercel"`, `"netlify"`, etc. or `null` */
 export const platform: Platform = _resolved.platform
+/** Resolution debug string. */
+export const debug: string = _resolved.debug
 /** `true` when running in production */
 export const isProduction: boolean = _resolved.isProduction
 /** `true` when running in a preview/staging deployment */
@@ -104,4 +117,4 @@ export const isLocal: boolean = _resolved.isLocal
  */
 export default _resolved
 
-export type { WhichUrl, WhichUrlWithDebug, AppEnv, Platform, PlatformName } from "./types"
+export type { WhichUrl, WhichUrlWithDebug, AppEnv, Platform, PlatformName, CreateUrlOptions } from "./types"

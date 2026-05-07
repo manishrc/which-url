@@ -8,8 +8,8 @@ export interface ResolveResult {
   debugLabel: string
 }
 
-export function resolveUrl(): ResolveResult {
-  const env = getEnv()
+export function resolveUrl(envOverride?: Record<string, unknown>): ResolveResult {
+  const env = getEnv(envOverride)
 
   // 1. User override — checks APP_URL, NEXT_PUBLIC_APP_URL, VITE_APP_URL, etc.
   const override = getVar(env, "APP_URL")
@@ -49,8 +49,8 @@ export function resolveUrl(): ResolveResult {
   )
 }
 
-export function resolvePlatform(): Platform {
-  const env = getEnv()
+export function resolvePlatform(envOverride?: Record<string, unknown>): Platform {
+  const env = getEnv(envOverride)
   for (const p of providers) {
     if (p.detect(env)) {
       return p.name

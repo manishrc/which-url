@@ -137,9 +137,27 @@ export function getVar(
   return undefined
 }
 
-export function getEnv(): Record<string, string | undefined> {
+export function getEnv(
+  override?: Record<string, unknown>
+): Record<string, string | undefined> {
+  if (override !== undefined) {
+    return filterStrings(override)
+  }
   if (typeof process !== "undefined" && process?.env) {
     return process.env
   }
   return {}
+}
+
+// Workers bindings (KV, DO, R2, service bindings) come through `env` as objects.
+// URL detection only works on strings, so drop everything else at the boundary.
+function filterStrings(
+  source: Record<string, unknown>
+): Record<string, string | undefined> {
+  const out: Record<string, string | undefined> = {}
+  for (const key in source) {
+    const value = source[key]
+    if (typeof value === "string") out[key] = value
+  }
+  return out
 }

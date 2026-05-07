@@ -42,6 +42,19 @@ export interface WhichUrlWithDebug extends WhichUrl {
   readonly debug: string
 }
 
+export interface CreateUrlOptions {
+  /**
+   * Runtime environment source. Pass this when `process.env` isn't available
+   * or doesn't contain your config — e.g. on Cloudflare Workers, where the
+   * Worker `env` argument carries `[vars]` from `wrangler.toml`.
+   *
+   * When provided, `process.env` is ignored entirely. Only string-valued
+   * entries participate in URL detection — non-string Workers bindings
+   * (KV namespaces, Durable Objects, R2 buckets, service bindings) are dropped.
+   */
+  env?: Record<string, unknown>
+}
+
 export interface ProviderDetector {
   name: PlatformName
   detect: (env: Record<string, string | undefined>) => boolean
