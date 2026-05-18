@@ -22,12 +22,15 @@ Production    https://myapp.com                     "production"
 
 Works across environments (local, preview, production), browser bundles, Node/Bun servers, and edge runtimes that expose compatible env vars through `process.env` or build-time public env replacement.
 
+For browser bundles, framework-prefixed env vars must be referenced statically so the bundler can inline them at build time. `which-url` includes literal references such as `process.env.NEXT_PUBLIC_APP_URL` and `process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL`; dynamic lookup like `process.env["NEXT_PUBLIC_" + name]` cannot be inlined by Next.js.
+
 The default export gives you everything as an object:
 
 ```typescript
 import appUrl from 'which-url'
 
 appUrl.origin       // "https://myapp.com"
+appUrl.productionOrigin // "https://myapp.com"
 appUrl.hostname     // "myapp.com"
 appUrl.protocol     // "https:"
 appUrl.env          // "production"
@@ -89,6 +92,10 @@ When you call `createUrl({ env })`, the passed object replaces `process.env` as 
 
 If nothing is detected in production, the default singleton returns empty URL strings so imports stay safe in tests, client bundles, and build tools. Call `createUrl()` directly when a missing URL should throw.
 
+`origin` is the current environment origin. In a preview deployment, it should point at the preview. In production, it should point at production. Locally, it should point at local dev.
+
+`productionOrigin` is the canonical production origin when configured or detectable. Use it for things that should still point at the public production site from previews, such as canonical metadata, social cards, and "view live site" links.
+
 ## Strict mode with `createUrl()`
 
 Use the default export or named constants for convenience:
@@ -122,7 +129,28 @@ APP_URL=https://myapp.com
 
 Works with or without protocol (`APP_URL=myapp.com` → `https://myapp.com`).
 
-**Client-side frameworks:** All framework prefixes are supported automatically — `NEXT_PUBLIC_APP_URL`, `VITE_APP_URL`, `PUBLIC_APP_URL`, `NUXT_ENV_APP_URL`, etc.
+**Client-side frameworks:** All framework prefixes are supported automatically — `NEXT_PUBLIC_APP_URL`, `VITE_APP_URL`, `PUBLIC_APP_URL`, `NUXT_ENV_APP_URL`, etc. These are build-time values in browser bundles.
+
+## Production URL
+
+Use `APP_PRODUCTION_URL` when the canonical production URL is different from the current environment URL:
+
+```bash
+APP_PRODUCTION_URL=https://myapp.com
+```
+
+```typescript
+import { origin, productionOrigin } from 'which-url'
+
+origin           // current environment origin
+productionOrigin // canonical production origin, when available
+```
+
+On Vercel, `productionOrigin` is detected from `VERCEL_PROJECT_PRODUCTION_URL`, even in preview deployments.
+
+In Next.js browser bundles on Vercel deployments, it is detected from `NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL`. Vercel adds these framework-prefixed vars for production and preview deployments based on the framework preset, but `vercel env pull` does not create the prefixed local versions automatically.
+
+**Client-side frameworks:** Framework prefixes are supported here too — `NEXT_PUBLIC_APP_PRODUCTION_URL`, `VITE_APP_PRODUCTION_URL`, `PUBLIC_APP_PRODUCTION_URL`, etc. These are build-time values in browser bundles.
 
 ## Platform support
 
@@ -255,6 +283,7 @@ Strict resolver function. It resolves when called and throws if no URL can be de
 | `href` | `string` | Same as `origin` |
 | `protocol` | `string` | `"https:"` |
 | `port` | `string` | `""` or `"3000"` |
+| `productionOrigin` | `string` | `"https://myapp.com"` |
 | `env` | `AppEnv` | `"production"` \| `"preview"` \| `"local"` |
 | `platform` | `Platform` | `"vercel"` \| `"netlify"` \| ... \| `null` |
 | `debug`* | `string` | `"[provider:vercel] url=myapp.com \| env=production (vercel:production)"` |

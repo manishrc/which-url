@@ -6,6 +6,7 @@ const ENV_VARS = [
   "VERCEL_BRANCH_URL",
   "VERCEL_PROJECT_PRODUCTION_URL",
   "APP_URL",
+  "APP_PRODUCTION_URL",
   "APP_ENV",
 ] as const
 
@@ -78,6 +79,18 @@ function readStatic(name: EnvVarName): string | undefined {
         || process.env.VUE_APP_APP_URL
         || process.env.REDWOOD_ENV_APP_URL
         || process.env.SANITY_STUDIO_APP_URL
+        || undefined
+    case "APP_PRODUCTION_URL":
+      return process.env.APP_PRODUCTION_URL
+        || process.env.NEXT_PUBLIC_APP_PRODUCTION_URL
+        || process.env.NUXT_ENV_APP_PRODUCTION_URL
+        || process.env.VITE_APP_PRODUCTION_URL
+        || process.env.PUBLIC_APP_PRODUCTION_URL
+        || process.env.REACT_APP_APP_PRODUCTION_URL
+        || process.env.GATSBY_APP_PRODUCTION_URL
+        || process.env.VUE_APP_APP_PRODUCTION_URL
+        || process.env.REDWOOD_ENV_APP_PRODUCTION_URL
+        || process.env.SANITY_STUDIO_APP_PRODUCTION_URL
         || undefined
     case "APP_ENV":
       return process.env.APP_ENV

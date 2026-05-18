@@ -1,4 +1,4 @@
-import { resolveUrl, resolvePlatform } from "./resolve"
+import { resolveUrl, resolveProductionUrl, resolvePlatform } from "./resolve"
 import { resolveEnv } from "./env"
 import type { WhichUrlWithDebug, AppEnv, Platform, CreateUrlOptions } from "./types"
 
@@ -18,7 +18,12 @@ export function createUrl(options?: CreateUrlOptions): WhichUrlWithDebug {
   const parsed = new URL(url)
   const { env, debugLabel: envDebug } = resolveEnv(envOverride)
   const platform = resolvePlatform(envOverride)
-  const debug = `${urlDebug} | env=${env} (${envDebug})`
+  const productionResult = resolveProductionUrl(envOverride)
+  const productionOrigin = productionResult ? new URL(productionResult.url).origin : ""
+  const productionDebug = productionResult
+    ? ` | production=${productionOrigin} (${productionResult.debugLabel})`
+    : " | production=unresolved"
+  const debug = `${urlDebug} | env=${env} (${envDebug})${productionDebug}`
 
   const result: WhichUrlWithDebug = {
     href: parsed.origin,
@@ -27,6 +32,7 @@ export function createUrl(options?: CreateUrlOptions): WhichUrlWithDebug {
     host: parsed.host,
     protocol: parsed.protocol,
     port: parsed.port,
+    productionOrigin,
     env,
     platform,
     debug,
@@ -58,6 +64,7 @@ function createFallback(error: unknown): WhichUrlWithDebug {
     host: "",
     protocol: "",
     port: "",
+    productionOrigin: "",
     env: resolvedEnv,
     platform: resolvePlatform(),
     debug: `[error] ${message} | env=${resolvedEnv} (${envDebug})`,
@@ -89,6 +96,8 @@ export const host: string = _resolved.host
 export const protocol: string = _resolved.protocol
 /** Port string — `""` for default ports, `"3000"` for custom */
 export const port: string = _resolved.port
+/** Canonical production origin when configured or detectable — `"https://myapp.com"` */
+export const productionOrigin: string = _resolved.productionOrigin
 /** Current environment — `"production"`, `"preview"`, or `"local"` */
 export const env: AppEnv = _resolved.env
 /** Detected hosting platform — `"vercel"`, `"netlify"`, etc. or `null` */
@@ -110,6 +119,7 @@ export const isLocal: boolean = _resolved.isLocal
  * import appUrl from 'which-url'
  *
  * appUrl.origin      // "https://myapp.com"
+ * appUrl.productionOrigin // "https://myapp.com"
  * appUrl.env         // "production"
  * appUrl.platform    // "vercel"
  * appUrl.debug       // "[provider:vercel] url=myapp.com | env=production (vercel:production)"

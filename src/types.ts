@@ -25,6 +25,8 @@ export interface WhichUrl {
   readonly protocol: string
   /** Port string — `""` for default ports, `"3000"` for custom */
   readonly port: string
+  /** Canonical production origin when configured or detectable — `"https://myapp.com"` */
+  readonly productionOrigin: string
   /** Current environment — `"production"`, `"preview"`, or `"local"` */
   readonly env: AppEnv
   /** Detected hosting platform — `"vercel"`, `"netlify"`, etc. or `null` */
@@ -59,5 +61,6 @@ export interface ProviderDetector {
   name: PlatformName
   detect: (env: Record<string, string | undefined>) => boolean
   resolveUrl: (env: Record<string, string | undefined>) => string | null
+  resolveProductionUrl?: (env: Record<string, string | undefined>) => string | null
   resolveEnv: (env: Record<string, string | undefined>) => AppEnv
 }

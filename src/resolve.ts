@@ -49,6 +49,57 @@ export function resolveUrl(envOverride?: object): ResolveResult {
   )
 }
 
+export function resolveProductionUrl(envOverride?: object): ResolveResult | null {
+  const env = getEnv(envOverride)
+
+  // 1. Explicit production override — separate from APP_URL so local
+  // APP_URL=http://localhost:3000 does not become the canonical URL.
+  const override = getVar(env, "APP_PRODUCTION_URL")
+  if (override) {
+    return {
+      url: normalizeUrl(override),
+      debugLabel: `[production:override] APP_PRODUCTION_URL=${override}`,
+    }
+  }
+
+  // 2. Provider-specific production URL when the platform exposes one.
+  for (const p of providers) {
+    if (p.detect(env)) {
+      const url = p.resolveProductionUrl?.(env)
+      if (url) {
+        return {
+          url: normalizeUrl(url),
+          debugLabel: `[production:provider:${p.name}] url=${url}`,
+        }
+      }
+    }
+  }
+
+  // 3. If this is actually production, APP_URL/current provider URL is also
+  // the production URL. Avoid this fallback for local/preview.
+  for (const p of providers) {
+    if (p.detect(env) && p.resolveEnv(env) === "production") {
+      const url = p.resolveUrl(env)
+      if (url) {
+        return {
+          url: normalizeUrl(url),
+          debugLabel: `[production:current:${p.name}] url=${url}`,
+        }
+      }
+    }
+  }
+
+  const appUrl = getVar(env, "APP_URL")
+  if (appUrl && env.NODE_ENV === "production") {
+    return {
+      url: normalizeUrl(appUrl),
+      debugLabel: `[production:current] APP_URL=${appUrl}`,
+    }
+  }
+
+  return null
+}
+
 export function resolvePlatform(envOverride?: object): Platform {
   const env = getEnv(envOverride)
   for (const p of providers) {

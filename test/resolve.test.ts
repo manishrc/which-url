@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test"
-import { resolveUrl } from "../src/resolve"
+import { resolveProductionUrl, resolveUrl } from "../src/resolve"
 
 // Save and restore process.env between tests
 let savedEnv: NodeJS.ProcessEnv
@@ -8,7 +8,9 @@ beforeEach(() => {
   savedEnv = { ...process.env }
   // Clear all provider env vars
   delete process.env.APP_URL
+  delete process.env.APP_PRODUCTION_URL
   delete process.env.NEXT_PUBLIC_APP_URL
+  delete process.env.NEXT_PUBLIC_APP_PRODUCTION_URL
   delete process.env.VERCEL
   delete process.env.VERCEL_ENV
   delete process.env.VERCEL_URL
@@ -45,6 +47,43 @@ describe("resolveUrl", () => {
     process.env.VERCEL = "1"
     process.env.VERCEL_URL = "myapp.vercel.app"
     expect(resolveUrl().url).toBe("https://custom.example.com")
+  })
+
+  test("APP_PRODUCTION_URL resolves canonical production URL", () => {
+    process.env.APP_URL = "http://localhost:3000"
+    process.env.APP_PRODUCTION_URL = "myapp.com"
+    expect(resolveProductionUrl()?.url).toBe("https://myapp.com")
+  })
+
+  test("NEXT_PUBLIC_APP_PRODUCTION_URL resolves canonical production URL", () => {
+    process.env.NEXT_PUBLIC_APP_PRODUCTION_URL = "https://public.example.com"
+    expect(resolveProductionUrl()?.url).toBe("https://public.example.com")
+  })
+
+  test("production URL uses Vercel production domain in preview", () => {
+    process.env.VERCEL = "1"
+    process.env.VERCEL_ENV = "preview"
+    process.env.VERCEL_BRANCH_URL = "myapp-git-feature.vercel.app"
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = "myapp.com"
+
+    expect(resolveUrl().url).toBe("https://myapp-git-feature.vercel.app")
+    expect(resolveProductionUrl()?.url).toBe("https://myapp.com")
+  })
+
+  test("production URL uses framework-prefixed Vercel production domain", () => {
+    process.env.NEXT_PUBLIC_VERCEL_ENV = "preview"
+    process.env.NEXT_PUBLIC_VERCEL_BRANCH_URL = "myapp-git-feature.vercel.app"
+    process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL = "myapp.com"
+
+    expect(resolveUrl().url).toBe("https://myapp-git-feature.vercel.app")
+    expect(resolveProductionUrl()?.url).toBe("https://myapp.com")
+  })
+
+  test("production URL does not treat local APP_URL as canonical", () => {
+    process.env.APP_URL = "http://localhost:3000"
+    process.env.NODE_ENV = "development"
+
+    expect(resolveProductionUrl()).toBeNull()
   })
 
   test("NEXT_PUBLIC_APP_URL override works", () => {

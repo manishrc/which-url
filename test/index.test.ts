@@ -7,7 +7,9 @@ let savedEnv: NodeJS.ProcessEnv
 beforeEach(() => {
   savedEnv = { ...process.env }
   delete process.env.APP_URL
+  delete process.env.APP_PRODUCTION_URL
   delete process.env.NEXT_PUBLIC_APP_URL
+  delete process.env.NEXT_PUBLIC_APP_PRODUCTION_URL
   delete process.env.VERCEL
   delete process.env.VERCEL_ENV
   delete process.env.VERCEL_URL
@@ -33,6 +35,28 @@ describe("which-url public API", () => {
     expect(parsed.host).toBe("myapp.vercel.app")
     expect(parsed.protocol).toBe("https:")
     expect(parsed.port).toBe("")
+  })
+
+  test("createUrl exposes productionOrigin from explicit production URL", () => {
+    process.env.APP_URL = "http://localhost:3000"
+    process.env.APP_PRODUCTION_URL = "https://myapp.com"
+    const { createUrl } = require("../src/index")
+
+    const appUrl = createUrl()
+    expect(appUrl.origin).toBe("http://localhost:3000")
+    expect(appUrl.productionOrigin).toBe("https://myapp.com")
+  })
+
+  test("createUrl exposes productionOrigin from Vercel preview env", () => {
+    process.env.VERCEL = "1"
+    process.env.VERCEL_ENV = "preview"
+    process.env.VERCEL_BRANCH_URL = "myapp-git-feature.vercel.app"
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = "myapp.com"
+    const { createUrl } = require("../src/index")
+
+    const appUrl = createUrl()
+    expect(appUrl.origin).toBe("https://myapp-git-feature.vercel.app")
+    expect(appUrl.productionOrigin).toBe("https://myapp.com")
   })
 
   test("resolves env from provider", () => {
@@ -123,7 +147,9 @@ describe("which-url public API", () => {
   test("default import stays quiet and best-effort when production URL cannot be resolved", () => {
     const env = { ...process.env, NODE_ENV: "production" }
     delete env.APP_URL
+    delete env.APP_PRODUCTION_URL
     delete env.NEXT_PUBLIC_APP_URL
+    delete env.NEXT_PUBLIC_APP_PRODUCTION_URL
     delete env.VERCEL
     delete env.VERCEL_ENV
     delete env.VERCEL_URL

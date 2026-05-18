@@ -12,6 +12,8 @@ export const providers: ProviderDetector[] = [
       }
       return getVar(env, "VERCEL_BRANCH_URL") || getVar(env, "VERCEL_URL") || null
     },
+    resolveProductionUrl: (env) =>
+      getVar(env, "VERCEL_PROJECT_PRODUCTION_URL") || null,
     resolveEnv: (env) => {
       const vercelEnv = getVar(env, "VERCEL_ENV")
       if (vercelEnv === "production") return "production"
@@ -26,6 +28,7 @@ export const providers: ProviderDetector[] = [
       if (env.CONTEXT === "production") return env.URL || null
       return env.DEPLOY_PRIME_URL || env.DEPLOY_URL || null
     },
+    resolveProductionUrl: (env) => env.URL || null,
     resolveEnv: (env) => {
       if (env.CONTEXT === "production") return "production"
       if (env.CONTEXT === "deploy-preview" || env.CONTEXT === "branch-deploy")
@@ -47,6 +50,7 @@ export const providers: ProviderDetector[] = [
     name: "railway",
     detect: (env) => !!env.RAILWAY_PUBLIC_DOMAIN,
     resolveUrl: (env) => env.RAILWAY_PUBLIC_DOMAIN || null,
+    resolveProductionUrl: (env) => env.RAILWAY_PUBLIC_DOMAIN || null,
     resolveEnv: (env) => {
       if (env.RAILWAY_ENVIRONMENT === "production") return "production"
       return "production"
@@ -57,12 +61,16 @@ export const providers: ProviderDetector[] = [
     detect: (env) => !!env.FLY_APP_NAME,
     resolveUrl: (env) =>
       env.FLY_APP_NAME ? `${env.FLY_APP_NAME}.fly.dev` : null,
+    resolveProductionUrl: (env) =>
+      env.FLY_APP_NAME ? `${env.FLY_APP_NAME}.fly.dev` : null,
     resolveEnv: () => "production",
   },
   {
     name: "render",
     detect: (env) => !!env.RENDER,
     resolveUrl: (env) => env.RENDER_EXTERNAL_URL || null,
+    resolveProductionUrl: (env) =>
+      env.IS_PULL_REQUEST === "true" ? null : env.RENDER_EXTERNAL_URL || null,
     resolveEnv: (env) => {
       if (env.IS_PULL_REQUEST === "true") return "preview"
       return "production"
@@ -72,12 +80,15 @@ export const providers: ProviderDetector[] = [
     name: "digitalocean",
     detect: (env) => !!env.DIGITALOCEAN_APP_PLATFORM,
     resolveUrl: (env) => env.APP_URL || null,
+    resolveProductionUrl: (env) => env.APP_URL || null,
     resolveEnv: () => "production",
   },
   {
     name: "heroku",
     detect: (env) => !!env.HEROKU_APP_NAME,
     resolveUrl: (env) =>
+      env.HEROKU_APP_NAME ? `${env.HEROKU_APP_NAME}.herokuapp.com` : null,
+    resolveProductionUrl: (env) =>
       env.HEROKU_APP_NAME ? `${env.HEROKU_APP_NAME}.herokuapp.com` : null,
     resolveEnv: () => "production",
   },

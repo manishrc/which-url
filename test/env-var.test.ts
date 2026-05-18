@@ -14,6 +14,15 @@ describe("getVar", () => {
     ).toBe("production")
   })
 
+  test("finds APP_PRODUCTION_URL prefixed value", () => {
+    expect(
+      getVar(
+        { NEXT_PUBLIC_APP_PRODUCTION_URL: "https://myapp.com" },
+        "APP_PRODUCTION_URL"
+      )
+    ).toBe("https://myapp.com")
+  })
+
   test("finds VITE_ prefixed value", () => {
     expect(
       getVar({ VITE_VERCEL_URL: "myapp-git-feat.vercel.app" }, "VERCEL_URL")
