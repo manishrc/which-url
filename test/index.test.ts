@@ -59,6 +59,16 @@ describe("which-url public API", () => {
     expect(appUrl.productionOrigin).toBe("https://myapp.com")
   })
 
+  test("createUrl exposes unresolved productionOrigin as undefined", () => {
+    process.env.APP_URL = "http://localhost:3000"
+    const { createUrl } = require("../src/index")
+
+    const appUrl = createUrl()
+    expect(appUrl.origin).toBe("http://localhost:3000")
+    expect(appUrl.productionOrigin).toBeUndefined()
+    expect(appUrl.isResolved).toBe(true)
+  })
+
   test("resolves env from provider", () => {
     process.env.NODE_ENV = "production"
     process.env.VERCEL = "1"
@@ -172,7 +182,9 @@ describe("which-url public API", () => {
     expect(result.exitCode).toBe(0)
     expect(result.stderr.toString()).toBe("")
     expect(appUrl.origin).toBe("")
+    expect(appUrl.productionOrigin).toBeUndefined()
     expect(appUrl.env).toBe("production")
+    expect(appUrl.isResolved).toBe(false)
     expect(appUrl.isProduction).toBe(true)
   })
 

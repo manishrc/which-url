@@ -19,7 +19,7 @@ export function createUrl(options?: CreateUrlOptions): WhichUrlWithDebug {
   const { env, debugLabel: envDebug } = resolveEnv(envOverride)
   const platform = resolvePlatform(envOverride)
   const productionResult = resolveProductionUrl(envOverride)
-  const productionOrigin = productionResult ? new URL(productionResult.url).origin : ""
+  const productionOrigin = productionResult ? new URL(productionResult.url).origin : undefined
   const productionDebug = productionResult
     ? ` | production=${productionOrigin} (${productionResult.debugLabel})`
     : " | production=unresolved"
@@ -36,6 +36,7 @@ export function createUrl(options?: CreateUrlOptions): WhichUrlWithDebug {
     env,
     platform,
     debug,
+    isResolved: true,
     isProduction: env === "production",
     isPreview: env === "preview",
     isLocal: env === "local",
@@ -64,10 +65,11 @@ function createFallback(error: unknown): WhichUrlWithDebug {
     host: "",
     protocol: "",
     port: "",
-    productionOrigin: "",
+    productionOrigin: undefined,
     env: resolvedEnv,
     platform: resolvePlatform(),
     debug: `[error] ${message} | env=${resolvedEnv} (${envDebug})`,
+    isResolved: false,
     isProduction: resolvedEnv === "production",
     isPreview: resolvedEnv === "preview",
     isLocal: resolvedEnv === "local",
@@ -96,14 +98,16 @@ export const host: string = _resolved.host
 export const protocol: string = _resolved.protocol
 /** Port string — `""` for default ports, `"3000"` for custom */
 export const port: string = _resolved.port
-/** Canonical production origin when configured or detectable — `"https://myapp.com"` */
-export const productionOrigin: string = _resolved.productionOrigin
+/** Canonical production origin when configured or detectable, otherwise `undefined`. */
+export const productionOrigin: string | undefined = _resolved.productionOrigin
 /** Current environment — `"production"`, `"preview"`, or `"local"` */
 export const env: AppEnv = _resolved.env
 /** Detected hosting platform — `"vercel"`, `"netlify"`, etc. or `null` */
 export const platform: Platform = _resolved.platform
 /** Resolution debug string. */
 export const debug: string = _resolved.debug
+/** `true` when the current URL resolved successfully; `false` only on the import-safe fallback. */
+export const isResolved: boolean = _resolved.isResolved
 /** `true` when running in production */
 export const isProduction: boolean = _resolved.isProduction
 /** `true` when running in a preview/staging deployment */
@@ -119,9 +123,10 @@ export const isLocal: boolean = _resolved.isLocal
  * import appUrl from 'which-url'
  *
  * appUrl.origin      // "https://myapp.com"
- * appUrl.productionOrigin // "https://myapp.com"
+ * appUrl.productionOrigin // "https://myapp.com" or undefined
  * appUrl.env         // "production"
  * appUrl.platform    // "vercel"
+ * appUrl.isResolved  // true
  * appUrl.debug       // "[provider:vercel] url=myapp.com | env=production (vercel:production)"
  * ```
  */

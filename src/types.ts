@@ -25,12 +25,14 @@ export interface WhichUrl {
   readonly protocol: string
   /** Port string — `""` for default ports, `"3000"` for custom */
   readonly port: string
-  /** Canonical production origin when configured or detectable — `"https://myapp.com"` */
-  readonly productionOrigin: string
+  /** Canonical production origin when configured or detectable, otherwise `undefined`. */
+  readonly productionOrigin: string | undefined
   /** Current environment — `"production"`, `"preview"`, or `"local"` */
   readonly env: AppEnv
   /** Detected hosting platform — `"vercel"`, `"netlify"`, etc. or `null` */
   readonly platform: Platform
+  /** `true` when the current URL resolved successfully; `false` only on the import-safe fallback. */
+  readonly isResolved: boolean
   /** `true` when running in production */
   readonly isProduction: boolean
   /** `true` when running in a preview/staging deployment */

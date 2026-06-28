@@ -1,6 +1,6 @@
 {
   "name": "which-url",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "Auto-detect your app's URL across hosting providers. Zero config.",
   "type": "module",
   "exports": {
@@ -31,6 +31,8 @@
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --format esm --minify && tsc --emitDeclarationOnly --outDir dist",
     "test": "bun test",
+    "release:check": "bun test && bun run build && git diff --quiet && git diff --cached --quiet && node -e \"const { execSync } = require('node:child_process'); const version = require('./package.json').version; const tag = execSync('git describe --tags --exact-match', { encoding: 'utf8' }).trim(); const expected = 'v' + version; if (tag !== expected) throw new Error('package.json version ' + version + ' must match checked-out tag ' + tag)\"",
+    "release:publish": "bun run release:check && git push && git push --tags && npm publish",
     "prepublishOnly": "bun run build"
   },
   "devDependencies": {

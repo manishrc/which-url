@@ -2,6 +2,8 @@
 
 Auto-detect your app's URL across hosting providers. Zero config.
 
+This README documents `which-url@0.0.11`.
+
 ```bash
 npm install which-url
 ```
@@ -30,11 +32,12 @@ The default export gives you everything as an object:
 import appUrl from 'which-url'
 
 appUrl.origin       // "https://myapp.com"
-appUrl.productionOrigin // "https://myapp.com"
+appUrl.productionOrigin // "https://myapp.com" or undefined
 appUrl.hostname     // "myapp.com"
 appUrl.protocol     // "https:"
 appUrl.env          // "production"
 appUrl.platform     // "vercel"
+appUrl.isResolved   // true
 appUrl.isProduction // true
 ```
 
@@ -90,11 +93,11 @@ Reads environment variables that hosting providers set automatically:
 
 When you call `createUrl({ env })`, the passed object replaces `process.env` as the source for steps 1–2.
 
-If nothing is detected in production, the default singleton returns empty URL strings so imports stay safe in tests, client bundles, and build tools. Call `createUrl()` directly when a missing URL should throw.
+If nothing is detected in production, the default singleton returns empty current-URL strings and `isResolved: false` so imports stay safe in tests, client bundles, and build tools. Call `createUrl()` directly when a missing current URL should throw.
 
 `origin` is the current environment origin. In a preview deployment, it should point at the preview. In production, it should point at production. Locally, it should point at local dev.
 
-`productionOrigin` is the canonical production origin when configured or detectable. Use it for things that should still point at the public production site from previews, such as canonical metadata, social cards, and "view live site" links.
+`productionOrigin` is the canonical production origin when configured or detectable, otherwise `undefined`. Use it for things that should still point at the public production site from previews, such as canonical metadata, social cards, and "view live site" links. When you need a URL in all environments, use `productionOrigin ?? origin`.
 
 ## Strict mode with `createUrl()`
 
@@ -115,6 +118,18 @@ auth({ baseURL: appUrl.origin })
 ```
 
 `createUrl()` resolves fresh environment values when called. If no URL can be detected in production, it throws with instructions to set `APP_URL`.
+
+If you intentionally use the import-safe singleton in production code, branch on `isResolved` before trusting URL strings:
+
+```typescript
+import { isResolved, origin } from 'which-url'
+
+if (!isResolved) {
+  throw new Error('APP_URL is required in production')
+}
+
+auth({ baseURL: origin })
+```
 
 For runtimes that pass env as an argument (e.g. Cloudflare Workers), call `createUrl({ env })` and the passed object replaces `process.env` for that resolution. See [Cloudflare Workers](#cloudflare-workers) below.
 
@@ -143,7 +158,7 @@ APP_PRODUCTION_URL=https://myapp.com
 import { origin, productionOrigin } from 'which-url'
 
 origin           // current environment origin
-productionOrigin // canonical production origin, when available
+productionOrigin // canonical production origin, or undefined
 ```
 
 On Vercel, `productionOrigin` is detected from `VERCEL_PROJECT_PRODUCTION_URL`, even in preview deployments.
@@ -151,6 +166,18 @@ On Vercel, `productionOrigin` is detected from `VERCEL_PROJECT_PRODUCTION_URL`, 
 In Next.js browser bundles on Vercel deployments, it is detected from `NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL`. Vercel adds these framework-prefixed vars for production and preview deployments based on the framework preset, but `vercel env pull` does not create the prefixed local versions automatically.
 
 **Client-side frameworks:** Framework prefixes are supported here too — `NEXT_PUBLIC_APP_PRODUCTION_URL`, `VITE_APP_PRODUCTION_URL`, `PUBLIC_APP_PRODUCTION_URL`, etc. These are build-time values in browser bundles.
+
+## Multi-tenant apps
+
+For subdomain-based tenants, `hostname` is often enough when the current app host is also the tenant suffix:
+
+```typescript
+import { hostname } from 'which-url'
+
+const tenantSuffix = hostname
+```
+
+If your app origin and tenant suffix differ — for example `app.foo.com` for the product UI and `*.foo.com` for tenants — keep that suffix in your own env var for now. `which-url` does not currently expose a separate tenant suffix.
 
 ## Platform support
 
@@ -283,10 +310,11 @@ Strict resolver function. It resolves when called and throws if no URL can be de
 | `href` | `string` | Same as `origin` |
 | `protocol` | `string` | `"https:"` |
 | `port` | `string` | `""` or `"3000"` |
-| `productionOrigin` | `string` | `"https://myapp.com"` |
+| `productionOrigin` | `string \| undefined` | `"https://myapp.com"` or `undefined` |
 | `env` | `AppEnv` | `"production"` \| `"preview"` \| `"local"` |
 | `platform` | `Platform` | `"vercel"` \| `"netlify"` \| ... \| `null` |
 | `debug`* | `string` | `"[provider:vercel] url=myapp.com \| env=production (vercel:production)"` |
+| `isResolved` | `boolean` | `true` unless the import-safe fallback was used |
 | `isProduction` | `boolean` | |
 | `isPreview` | `boolean` | |
 | `isLocal` | `boolean` | |
