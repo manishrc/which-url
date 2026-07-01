@@ -1,6 +1,13 @@
 import { resolveUrl, resolveProductionUrl, resolvePlatform, resolveAliasUrls } from "./resolve"
 import { resolveEnv } from "./env"
-import type { WhichUrlWithDebug, AppEnv, Platform, CreateUrlOptions } from "./types"
+import type {
+  WhichUrl,
+  ResolvedWhichUrl,
+  UnresolvedWhichUrl,
+  AppEnv,
+  Platform,
+  WhichUrlOptions,
+} from "./types"
 
 function collectOrigins(primary: string, envOverride?: object): string[] {
   const origins = [primary]
@@ -15,7 +22,7 @@ function collectOrigins(primary: string, envOverride?: object): string[] {
   return origins
 }
 
-function makeDebugNonEnumerable(result: WhichUrlWithDebug): WhichUrlWithDebug {
+function makeDebugNonEnumerable<T extends WhichUrl>(result: T): T {
   Object.defineProperty(result, "debug", {
     value: result.debug,
     enumerable: false,
@@ -25,7 +32,12 @@ function makeDebugNonEnumerable(result: WhichUrlWithDebug): WhichUrlWithDebug {
   return result
 }
 
-export function createUrl(options?: CreateUrlOptions): WhichUrlWithDebug {
+/**
+ * Strict resolver — resolves fresh environment values when called and throws
+ * if no URL can be detected in production. Use for production-critical
+ * configuration like auth, CORS, emails, and webhooks.
+ */
+export function whichUrl(options?: WhichUrlOptions): ResolvedWhichUrl {
   const envOverride = options?.env
   const { url, debugLabel: urlDebug } = resolveUrl(envOverride)
   const parsed = new URL(url)
@@ -40,8 +52,7 @@ export function createUrl(options?: CreateUrlOptions): WhichUrlWithDebug {
   const allowedOrigins = collectOrigins(parsed.origin, envOverride)
   const allowedHostnames = [...new Set(allowedOrigins.map((o) => new URL(o).hostname))]
 
-  const result: WhichUrlWithDebug = {
-    href: parsed.origin,
+  const result: ResolvedWhichUrl = {
     origin: parsed.origin,
     hostname: parsed.hostname,
     host: parsed.host,
@@ -62,7 +73,10 @@ export function createUrl(options?: CreateUrlOptions): WhichUrlWithDebug {
   return makeDebugNonEnumerable(result)
 }
 
-function createFallback(error: unknown): WhichUrlWithDebug {
+/** @deprecated Renamed — use `whichUrl()`. */
+export const createUrl = whichUrl
+
+function createFallback(error: unknown): UnresolvedWhichUrl {
   const message = error instanceof Error ? error.message : "resolution failed"
   let resolvedEnv: AppEnv = "local"
   let envDebug = "default"
@@ -75,8 +89,7 @@ function createFallback(error: unknown): WhichUrlWithDebug {
     // Keep the fallback import-safe even if future env resolution changes.
   }
 
-  const fallback: WhichUrlWithDebug = {
-    href: "",
+  const fallback: UnresolvedWhichUrl = {
     origin: "",
     hostname: "",
     host: "",
@@ -98,16 +111,14 @@ function createFallback(error: unknown): WhichUrlWithDebug {
 }
 
 // Eager singleton — convenient named exports should stay import-safe.
-let _resolved: WhichUrlWithDebug
+let _resolved: WhichUrl
 try {
-  _resolved = createUrl()
+  _resolved = whichUrl()
 } catch (e) {
   _resolved = createFallback(e)
 }
 
-/** Full URL including protocol — `"https://myapp.com"` */
-export const href: string = _resolved.href
-/** Full origin — `"https://myapp.com"` (same as href) */
+/** Full origin — `"https://myapp.com"` */
 export const origin: string = _resolved.origin
 /** Hostname without port — `"myapp.com"` */
 export const hostname: string = _resolved.hostname
@@ -139,7 +150,8 @@ export const isPreview: boolean = _resolved.isPreview
 export const isLocal: boolean = _resolved.isLocal
 
 /**
- * Auto-detected app URL with environment metadata.
+ * Auto-detected app URL with environment metadata. Typed as a discriminated
+ * union — branch on `isResolved` to narrow away the import-safe fallback:
  *
  * @example
  * ```ts
@@ -149,10 +161,22 @@ export const isLocal: boolean = _resolved.isLocal
  * appUrl.productionOrigin // "https://myapp.com" or undefined
  * appUrl.env         // "production"
  * appUrl.platform    // "vercel"
- * appUrl.isResolved  // true
  * appUrl.debug       // "[provider:vercel] url=myapp.com | env=production (vercel:production)"
+ *
+ * if (!appUrl.isResolved) throw new Error('APP_URL is required')
+ * appUrl.origin      // narrowed: resolved, non-empty
  * ```
  */
 export default _resolved
 
-export type { WhichUrl, WhichUrlWithDebug, AppEnv, Platform, PlatformName, CreateUrlOptions } from "./types"
+export type {
+  WhichUrl,
+  ResolvedWhichUrl,
+  UnresolvedWhichUrl,
+  WhichUrlWithDebug,
+  AppEnv,
+  Platform,
+  PlatformName,
+  WhichUrlOptions,
+  CreateUrlOptions,
+} from "./types"

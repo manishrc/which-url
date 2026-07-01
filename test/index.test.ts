@@ -37,33 +37,33 @@ describe("which-url public API", () => {
     expect(parsed.port).toBe("")
   })
 
-  test("createUrl exposes productionOrigin from explicit production URL", () => {
+  test("whichUrl exposes productionOrigin from explicit production URL", () => {
     process.env.APP_URL = "http://localhost:3000"
     process.env.APP_PRODUCTION_URL = "https://myapp.com"
-    const { createUrl } = require("../src/index")
+    const { whichUrl } = require("../src/index")
 
-    const appUrl = createUrl()
+    const appUrl = whichUrl()
     expect(appUrl.origin).toBe("http://localhost:3000")
     expect(appUrl.productionOrigin).toBe("https://myapp.com")
   })
 
-  test("createUrl exposes productionOrigin from Vercel preview env", () => {
+  test("whichUrl exposes productionOrigin from Vercel preview env", () => {
     process.env.VERCEL = "1"
     process.env.VERCEL_ENV = "preview"
     process.env.VERCEL_BRANCH_URL = "myapp-git-feature.vercel.app"
     process.env.VERCEL_PROJECT_PRODUCTION_URL = "myapp.com"
-    const { createUrl } = require("../src/index")
+    const { whichUrl } = require("../src/index")
 
-    const appUrl = createUrl()
+    const appUrl = whichUrl()
     expect(appUrl.origin).toBe("https://myapp-git-feature.vercel.app")
     expect(appUrl.productionOrigin).toBe("https://myapp.com")
   })
 
-  test("createUrl exposes unresolved productionOrigin as undefined", () => {
+  test("whichUrl exposes unresolved productionOrigin as undefined", () => {
     process.env.APP_URL = "http://localhost:3000"
-    const { createUrl } = require("../src/index")
+    const { whichUrl } = require("../src/index")
 
-    const appUrl = createUrl()
+    const appUrl = whichUrl()
     expect(appUrl.origin).toBe("http://localhost:3000")
     expect(appUrl.productionOrigin).toBeUndefined()
     expect(appUrl.isResolved).toBe(true)
@@ -140,18 +140,18 @@ describe("which-url public API", () => {
     expect(url).toBe("https://override.example.com")
   })
 
-  test("createUrl resolves fresh environment values", () => {
+  test("whichUrl resolves fresh environment values", () => {
     process.env.APP_URL = "https://fresh.example.com"
-    const { createUrl } = require("../src/index")
+    const { whichUrl } = require("../src/index")
 
-    expect(createUrl().origin).toBe("https://fresh.example.com")
+    expect(whichUrl().origin).toBe("https://fresh.example.com")
   })
 
-  test("createUrl throws when production URL cannot be resolved", () => {
+  test("whichUrl throws when production URL cannot be resolved", () => {
     process.env.NODE_ENV = "production"
-    const { createUrl } = require("../src/index")
+    const { whichUrl } = require("../src/index")
 
-    expect(() => createUrl()).toThrow("which-url: Cannot detect app URL")
+    expect(() => whichUrl()).toThrow("which-url: Cannot detect app URL")
   })
 
   test("default import stays quiet and best-effort when production URL cannot be resolved", () => {
@@ -188,6 +188,18 @@ describe("which-url public API", () => {
     expect(appUrl.isProduction).toBe(true)
   })
 
+  test("createUrl is a deprecated alias of whichUrl", () => {
+    const mod = require("../src/index")
+    expect(mod.createUrl).toBe(mod.whichUrl)
+  })
+
+  test("href is no longer exported", () => {
+    const mod = require("../src/index")
+    expect(mod.href).toBeUndefined()
+    expect("href" in mod.default).toBe(false)
+    expect("href" in mod.whichUrl({ env: { APP_URL: "https://myapp.com" } })).toBe(false)
+  })
+
   test("debug is non-enumerable on resolved object", () => {
     process.env.APP_URL = "https://myapp.com"
     const mod = require("../src/index")
@@ -205,9 +217,9 @@ describe("allowedOrigins / allowedHostnames allow-list", () => {
     process.env.PORTLESS_URL = "https://myapp.localhost"
     process.env.PORTLESS_TAILSCALE_URL = "https://myapp.tail1234.ts.net"
     process.env.PORT = "52341"
-    const { createUrl } = require("../src/index")
+    const { whichUrl } = require("../src/index")
 
-    const appUrl = createUrl()
+    const appUrl = whichUrl()
     expect(appUrl.origin).toBe("https://myapp.tail1234.ts.net")
     expect(appUrl.allowedOrigins).toEqual([
       "https://myapp.tail1234.ts.net",
@@ -225,9 +237,9 @@ describe("allowedOrigins / allowedHostnames allow-list", () => {
   test("portless with ngrok included", () => {
     process.env.PORTLESS_URL = "https://myapp.localhost"
     process.env.PORTLESS_NGROK_URL = "https://abc123.ngrok-free.app"
-    const { createUrl } = require("../src/index")
+    const { whichUrl } = require("../src/index")
 
-    expect(createUrl().allowedOrigins).toEqual([
+    expect(whichUrl().allowedOrigins).toEqual([
       "https://abc123.ngrok-free.app",
       "https://myapp.localhost",
       "http://localhost:3000",
@@ -235,8 +247,8 @@ describe("allowedOrigins / allowedHostnames allow-list", () => {
   })
 
   test("Vercel preview: branch URL, production domain, deployment URL — deduped", () => {
-    const { createUrl } = require("../src/index")
-    const appUrl = createUrl({
+    const { whichUrl } = require("../src/index")
+    const appUrl = whichUrl({
       env: {
         VERCEL: "1",
         VERCEL_ENV: "preview",
@@ -254,15 +266,15 @@ describe("allowedOrigins / allowedHostnames allow-list", () => {
   })
 
   test("plain local dev: single localhost origin, no duplicates", () => {
-    const { createUrl } = require("../src/index")
-    const appUrl = createUrl({ env: { NODE_ENV: "development", PORT: "4000" } })
+    const { whichUrl } = require("../src/index")
+    const appUrl = whichUrl({ env: { NODE_ENV: "development", PORT: "4000" } })
     expect(appUrl.allowedOrigins).toEqual(["http://localhost:4000"])
     expect(appUrl.allowedHostnames).toEqual(["localhost"])
   })
 
   test("production via APP_URL: no localhost in the list", () => {
-    const { createUrl } = require("../src/index")
-    const appUrl = createUrl({
+    const { whichUrl } = require("../src/index")
+    const appUrl = whichUrl({
       env: { APP_URL: "https://myapp.com", NODE_ENV: "production" },
     })
     expect(appUrl.allowedOrigins).toEqual(["https://myapp.com"])
@@ -293,41 +305,41 @@ describe("allowedOrigins / allowedHostnames allow-list", () => {
   })
 
   test("portless PORTLESS_TAILSCALE_URL without protocol is normalized in origins", () => {
-    const { createUrl } = require("../src/index")
-    const appUrl = createUrl({
+    const { whichUrl } = require("../src/index")
+    const appUrl = whichUrl({
       env: { NODE_ENV: "development", PORTLESS_URL: "myapp.localhost" },
     })
     expect(appUrl.allowedOrigins).toContain("https://myapp.localhost")
   })
 })
 
-describe("createUrl({ env }) — runtime-supplied env (Cloudflare Workers, etc.)", () => {
+describe("whichUrl({ env }) — runtime-supplied env (Cloudflare Workers, etc.)", () => {
   test("resolves APP_URL from a passed env object", () => {
-    const { createUrl } = require("../src/index")
-    const result = createUrl({ env: { APP_URL: "https://from-arg.example.com" } })
+    const { whichUrl } = require("../src/index")
+    const result = whichUrl({ env: { APP_URL: "https://from-arg.example.com" } })
     expect(result.origin).toBe("https://from-arg.example.com")
   })
 
   test("passed env fully replaces process.env (no merge)", () => {
     process.env.APP_URL = "https://from-process.example.com"
     process.env.NODE_ENV = "development"
-    const { createUrl } = require("../src/index")
-    const result = createUrl({ env: { APP_URL: "https://from-arg.example.com" } })
+    const { whichUrl } = require("../src/index")
+    const result = whichUrl({ env: { APP_URL: "https://from-arg.example.com" } })
     expect(result.origin).toBe("https://from-arg.example.com")
   })
 
   test("empty env object does NOT fall back to process.env", () => {
     process.env.APP_URL = "https://from-process.example.com"
     process.env.NODE_ENV = "development"
-    const { createUrl } = require("../src/index")
-    const result = createUrl({ env: {} })
+    const { whichUrl } = require("../src/index")
+    const result = whichUrl({ env: {} })
     // No APP_URL/provider in passed env; NODE_ENV unset in passed env → localhost fallback (non-production)
     expect(result.origin).toBe("http://localhost:3000")
   })
 
   test("resolves APP_ENV from a passed env object", () => {
-    const { createUrl } = require("../src/index")
-    const result = createUrl({
+    const { whichUrl } = require("../src/index")
+    const result = whichUrl({
       env: { APP_URL: "https://x.example.com", APP_ENV: "preview" },
     })
     expect(result.env).toBe("preview")
@@ -335,8 +347,8 @@ describe("createUrl({ env }) — runtime-supplied env (Cloudflare Workers, etc.)
   })
 
   test("ignores non-string bindings (KV, DO, R2, service bindings, numbers, bools)", () => {
-    const { createUrl } = require("../src/index")
-    const result = createUrl({
+    const { whichUrl } = require("../src/index")
+    const result = whichUrl({
       env: {
         APP_URL: "https://x.example.com",
         MY_KV: { get: () => null, put: () => null },
@@ -352,8 +364,8 @@ describe("createUrl({ env }) — runtime-supplied env (Cloudflare Workers, etc.)
   })
 
   test("detects Vercel provider vars from passed env object", () => {
-    const { createUrl } = require("../src/index")
-    const result = createUrl({
+    const { whichUrl } = require("../src/index")
+    const result = whichUrl({
       env: {
         VERCEL: "1",
         VERCEL_ENV: "production",
@@ -366,21 +378,21 @@ describe("createUrl({ env }) — runtime-supplied env (Cloudflare Workers, etc.)
   })
 
   test("throws in production (passed env) when no URL detected", () => {
-    const { createUrl } = require("../src/index")
-    expect(() => createUrl({ env: { NODE_ENV: "production" } })).toThrow(
+    const { whichUrl } = require("../src/index")
+    expect(() => whichUrl({ env: { NODE_ENV: "production" } })).toThrow(
       "which-url: Cannot detect app URL"
     )
   })
 
-  test("createUrl() with no argument still uses process.env", () => {
+  test("whichUrl() with no argument still uses process.env", () => {
     process.env.APP_URL = "https://still-works.example.com"
-    const { createUrl } = require("../src/index")
-    expect(createUrl().origin).toBe("https://still-works.example.com")
+    const { whichUrl } = require("../src/index")
+    expect(whichUrl().origin).toBe("https://still-works.example.com")
   })
 
-  test("createUrl({}) with no env key still uses process.env", () => {
+  test("whichUrl({}) with no env key still uses process.env", () => {
     process.env.APP_URL = "https://still-works.example.com"
-    const { createUrl } = require("../src/index")
-    expect(createUrl({}).origin).toBe("https://still-works.example.com")
+    const { whichUrl } = require("../src/index")
+    expect(whichUrl({}).origin).toBe("https://still-works.example.com")
   })
 })

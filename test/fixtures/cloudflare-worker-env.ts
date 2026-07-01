@@ -1,4 +1,4 @@
-import appUrl, { createUrl, origin, type AppEnv, type WhichUrlWithDebug } from "../../src/index"
+import appUrl, { whichUrl, createUrl, origin, type AppEnv, type WhichUrl, type ResolvedWhichUrl } from "../../src/index"
 
 interface Request {
   url: string
@@ -18,19 +18,25 @@ interface Env {
 
 declare const env: Env
 
-const fromWorkerEnv = createUrl({ env })
-const fromProcessEnv = createUrl({ env: process.env })
-const fromDefaultEnv = createUrl()
+const fromWorkerEnv = whichUrl({ env })
+const fromProcessEnv = whichUrl({ env: process.env })
+const fromDefaultEnv = whichUrl()
+const fromDeprecatedAlias: ResolvedWhichUrl = createUrl({ env })
 
 const appOrigin: string = fromWorkerEnv.origin
 const appEnv: AppEnv = fromWorkerEnv.env
-const withDebug: WhichUrlWithDebug = fromWorkerEnv
+const union: WhichUrl = fromWorkerEnv
 const defaultOrigin: string = appUrl.origin
 const namedOrigin: string = origin
 
+// `isResolved` is a discriminant — narrowing works on the union.
+const narrowed: string = appUrl.isResolved ? appUrl.allowedOrigins[0] : appUrl.origin
+const emptyOnFallback: "" = appUrl.isResolved ? "" : appUrl.origin
+const productionOnFallback: undefined = appUrl.isResolved ? undefined : appUrl.productionOrigin
+
 export default {
   fetch(_request: Request, workerEnv: Env) {
-    const workerUrl = createUrl({ env: workerEnv })
+    const workerUrl = whichUrl({ env: workerEnv })
 
     return Response.json({
       origin: workerUrl.origin,
@@ -39,9 +45,13 @@ export default {
       defaultOrigin: fromDefaultEnv.origin,
       appOrigin,
       appEnv,
-      debug: withDebug.debug,
+      debug: union.debug,
+      aliasOrigin: fromDeprecatedAlias.origin,
       singletonOrigin: defaultOrigin,
       namedOrigin,
+      narrowed,
+      emptyOnFallback,
+      productionOnFallback,
     })
   },
 }

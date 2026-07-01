@@ -2,7 +2,7 @@
 
 Auto-detect your app's URL across hosting providers. Zero config.
 
-This README documents `which-url@0.0.12`.
+This README documents `which-url@0.0.13`.
 
 ```bash
 npm install which-url
@@ -91,15 +91,15 @@ Reads environment variables that hosting providers set automatically:
 3. `window.location.origin` (browser fallback)
 4. `http://localhost:${PORT || 3000}` (development fallback)
 
-When you call `createUrl({ env })`, the passed object replaces `process.env` as the source for steps 1–2.
+When you call `whichUrl({ env })`, the passed object replaces `process.env` as the source for steps 1–2.
 
-If nothing is detected in production, the default singleton returns empty current-URL strings and `isResolved: false` so imports stay safe in tests, client bundles, and build tools. Call `createUrl()` directly when a missing current URL should throw.
+If nothing is detected in production, the default singleton returns empty current-URL strings and `isResolved: false` so imports stay safe in tests, client bundles, and build tools. Call `whichUrl()` directly when a missing current URL should throw.
 
 `origin` is the current environment origin. In a preview deployment, it should point at the preview. In production, it should point at production. Locally, it should point at local dev.
 
 `productionOrigin` is the canonical production origin when configured or detectable, otherwise `undefined`. Use it for things that should still point at the public production site from previews, such as canonical metadata, social cards, and "view live site" links. When you need a URL in all environments, use `productionOrigin ?? origin`.
 
-## Strict mode with `createUrl()`
+## Strict mode with `whichUrl()`
 
 Use the default export or named constants for convenience:
 
@@ -107,31 +107,31 @@ Use the default export or named constants for convenience:
 import { origin } from 'which-url'
 ```
 
-Use `createUrl()` for production-critical configuration like auth, CORS, emails, and webhooks:
+Use `whichUrl()` for production-critical configuration like auth, CORS, emails, and webhooks:
 
 ```typescript
-import { createUrl } from 'which-url'
+import { whichUrl } from 'which-url'
 
-const appUrl = createUrl()
+const appUrl = whichUrl()
 
 auth({ baseURL: appUrl.origin })
 ```
 
-`createUrl()` resolves fresh environment values when called. If no URL can be detected in production, it throws with instructions to set `APP_URL`.
+`whichUrl()` resolves fresh environment values when called. If no URL can be detected in production, it throws with instructions to set `APP_URL`. (`createUrl` is a deprecated alias from earlier releases.)
 
-If you intentionally use the import-safe singleton in production code, branch on `isResolved` before trusting URL strings:
+If you intentionally use the import-safe singleton in production code, branch on `isResolved` before trusting URL strings. `WhichUrl` is a discriminated union on `isResolved`, so TypeScript narrows the fallback arm away:
 
 ```typescript
-import { isResolved, origin } from 'which-url'
+import appUrl from 'which-url'
 
-if (!isResolved) {
+if (!appUrl.isResolved) {
   throw new Error('APP_URL is required in production')
 }
 
-auth({ baseURL: origin })
+auth({ baseURL: appUrl.origin }) // narrowed: resolved, non-empty
 ```
 
-For runtimes that pass env as an argument (e.g. Cloudflare Workers), call `createUrl({ env })` and the passed object replaces `process.env` for that resolution. See [Cloudflare Workers](#cloudflare-workers) below.
+For runtimes that pass env as an argument (e.g. Cloudflare Workers), call `whichUrl({ env })` and the passed object replaces `process.env` for that resolution. See [Cloudflare Workers](#cloudflare-workers) below.
 
 ## Override with `APP_URL`
 
@@ -242,9 +242,9 @@ export default nextConfig
 ```typescript
 // lib/auth.ts — better-auth
 import { betterAuth } from 'better-auth'
-import { createUrl } from 'which-url'
+import { whichUrl } from 'which-url'
 
-const appUrl = createUrl() // strict: throws in production if no URL is detectable
+const appUrl = whichUrl() // strict: throws in production if no URL is detectable
 
 export const auth = betterAuth({
   baseURL: appUrl.origin,
@@ -264,7 +264,7 @@ export const metadata: Metadata = {
 
 Notes:
 
-- `next.config.ts` runs in Node.js when the server starts, so the plain named imports are correct there — no `createUrl()` needed. Under portless/tunnels the env vars are already set because portless wraps the dev command (`portless run next dev`).
+- `next.config.ts` runs in Node.js when the server starts, so the plain named imports are correct there — no `whichUrl()` needed. Under portless/tunnels the env vars are already set because portless wraps the dev command (`portless run next dev`).
 - Values are resolved when the server starts. If you add a tunnel or change env vars, restart dev.
 - Nothing here needs to change between dev, preview, and production — that is the point. Deploy the same config everywhere.
 
@@ -324,7 +324,7 @@ if (isProduction) {
 
 ### `origin` is an origin — paths are dropped
 
-`origin`, `href`, `hostname`, etc. describe the app's *origin*, not an arbitrary URL. If you set `APP_URL=https://example.com/base`, the `/base` path is discarded and `origin` becomes `https://example.com`. Keep base paths in your own routing config; `which-url` only resolves where the app lives, not where it's mounted.
+`origin`, `hostname`, etc. describe the app's *origin*, not an arbitrary URL. If you set `APP_URL=https://example.com/base`, the `/base` path is discarded and `origin` becomes `https://example.com`. Keep base paths in your own routing config; `which-url` only resolves where the app lives, not where it's mounted.
 
 ### Vercel: Redeploy after assigning a custom domain
 
@@ -356,14 +356,14 @@ APP_URL=https://abc123.ngrok-free.app npm run dev
 
 ### Cloudflare Workers
 
-Cloudflare Workers pass config through the `env` argument to `fetch`, not `process.env`. Pass it to `createUrl({ env })`:
+Cloudflare Workers pass config through the `env` argument to `fetch`, not `process.env`. Pass it to `whichUrl({ env })`:
 
 ```typescript
-import { createUrl } from "which-url"
+import { whichUrl } from "which-url"
 
 export default {
   async fetch(request: Request, env: Env) {
-    const appUrl = createUrl({ env })
+    const appUrl = whichUrl({ env })
 
     return Response.json({ origin: appUrl.origin, env: appUrl.env })
   },
@@ -379,9 +379,9 @@ APP_ENV = "production"
 
 Non-string bindings (KV, Durable Objects, R2, service bindings) are ignored automatically — only string `[vars]` participate in URL detection.
 
-> ⚠️ The default singleton (`import appUrl from "which-url"`) and named exports (`origin`, `env`, etc.) resolve at **module load**, before your `fetch` handler runs. On Workers they will not see your `[vars]`. Use `createUrl({ env })` from inside your handler.
+> ⚠️ The default singleton (`import appUrl from "which-url"`) and named exports (`origin`, `env`, etc.) resolve at **module load**, before your `fetch` handler runs. On Workers they will not see your `[vars]`. Use `whichUrl({ env })` from inside your handler.
 
-If you're on `nodejs_compat` and prefer `process.env`, the default singleton works too — but `createUrl({ env })` is the runtime-native path and doesn't require the compat flag.
+If you're on `nodejs_compat` and prefer `process.env`, the default singleton works too — but `whichUrl({ env })` is the runtime-native path and doesn't require the compat flag.
 
 ### Debugging
 
@@ -399,11 +399,11 @@ console.log(appUrl.debug)
 
 ### Default export
 
-An import-safe singleton object with URL properties and environment helpers. It resolves once when the package is imported.
+An import-safe singleton object with URL properties and environment helpers. It resolves once when the package is imported. Typed as `WhichUrl`, a discriminated union on `isResolved` — narrowing on it removes the empty-string fallback arm.
 
-### `createUrl()`
+### `whichUrl()`
 
-Strict resolver function. It resolves when called and throws if no URL can be detected.
+Strict resolver function. It resolves when called and throws if no URL can be detected. Returns `ResolvedWhichUrl` — no `isResolved` check needed. `createUrl` remains as a deprecated alias.
 
 ### Named exports
 
@@ -412,7 +412,6 @@ Strict resolver function. It resolves when called and throws if no URL can be de
 | `origin` | `string` | `"https://myapp.vercel.app"` |
 | `hostname` | `string` | `"myapp.vercel.app"` |
 | `host` | `string` | `"myapp.vercel.app"` or `"localhost:3000"` |
-| `href` | `string` | Same as `origin` |
 | `protocol` | `string` | `"https:"` |
 | `port` | `string` | `""` or `"3000"` |
 | `productionOrigin` | `string \| undefined` | `"https://myapp.com"` or `undefined` |
@@ -425,9 +424,10 @@ Strict resolver function. It resolves when called and throws if no URL can be de
 | `isProduction` | `boolean` | |
 | `isPreview` | `boolean` | |
 | `isLocal` | `boolean` | |
-| `createUrl` | `(options?: { env?: object }) => WhichUrlWithDebug` | strict resolver |
+| `whichUrl` | `(options?: { env?: object }) => ResolvedWhichUrl` | strict resolver |
+| `createUrl` | — | deprecated alias of `whichUrl` |
 
-\* `debug` is non-enumerable on the default export and objects returned by `createUrl()` — excluded from `JSON.stringify` to avoid React hydration mismatches. It is also available as a named export.
+\* `debug` is non-enumerable on the default export and objects returned by `whichUrl()` — excluded from `JSON.stringify` to avoid React hydration mismatches. It is also available as a named export.
 
 ## License
 
