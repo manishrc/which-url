@@ -120,6 +120,19 @@ describe("resolveUrl", () => {
     expect(() => resolveUrl()).toThrow("which-url: Cannot detect app URL")
   })
 
+  test("throws when APP_ENV=production even if NODE_ENV is unset", () => {
+    delete process.env.NODE_ENV
+    process.env.APP_ENV = "production"
+    expect(() => resolveUrl()).toThrow("which-url: Cannot detect app URL")
+    delete process.env.APP_ENV
+  })
+
+  test("normalizes a protocol-less PORTLESS_URL instead of throwing", () => {
+    process.env.PORTLESS_URL = "myapp.localhost"
+    expect(resolveUrl().url).toBe("https://myapp.localhost")
+    delete process.env.PORTLESS_URL
+  })
+
   test("normalizes bare hostnames from providers", () => {
     process.env.VERCEL = "1"
     process.env.VERCEL_ENV = "production"

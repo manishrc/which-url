@@ -140,6 +140,22 @@ describe("Cloudflare Pages provider", () => {
     expect(cf.resolveEnv({ CF_PAGES_BRANCH: "main" })).toBe("production")
     expect(cf.resolveEnv({ CF_PAGES_BRANCH: "feature-x" })).toBe("preview")
   })
+
+  test("exposes production URL only on the production branch", () => {
+    const cf = findProvider("cloudflare")
+    expect(
+      cf.resolveProductionUrl?.({
+        CF_PAGES_BRANCH: "main",
+        CF_PAGES_URL: "https://myproject.pages.dev",
+      })
+    ).toBe("https://myproject.pages.dev")
+    expect(
+      cf.resolveProductionUrl?.({
+        CF_PAGES_BRANCH: "feature-x",
+        CF_PAGES_URL: "https://abc123.myproject.pages.dev",
+      })
+    ).toBeNull()
+  })
 })
 
 describe("Railway provider", () => {
@@ -160,6 +176,29 @@ describe("Railway provider", () => {
     const railway = findProvider("railway")
     expect(railway.resolveEnv({ RAILWAY_ENVIRONMENT: "production" })).toBe("production")
     expect(railway.resolveEnv({})).toBe("production")
+  })
+
+  test("classifies non-production Railway environments as preview", () => {
+    const railway = findProvider("railway")
+    expect(railway.resolveEnv({ RAILWAY_ENVIRONMENT_NAME: "pr-42" })).toBe("preview")
+    expect(railway.resolveEnv({ RAILWAY_ENVIRONMENT: "staging" })).toBe("preview")
+    expect(railway.resolveEnv({ RAILWAY_ENVIRONMENT_NAME: "production" })).toBe("production")
+  })
+
+  test("does not treat a PR environment domain as canonical production", () => {
+    const railway = findProvider("railway")
+    expect(
+      railway.resolveProductionUrl?.({
+        RAILWAY_ENVIRONMENT_NAME: "pr-42",
+        RAILWAY_PUBLIC_DOMAIN: "myapp-pr-42.up.railway.app",
+      })
+    ).toBeNull()
+    expect(
+      railway.resolveProductionUrl?.({
+        RAILWAY_ENVIRONMENT_NAME: "production",
+        RAILWAY_PUBLIC_DOMAIN: "myapp.up.railway.app",
+      })
+    ).toBe("myapp.up.railway.app")
   })
 })
 
@@ -232,6 +271,33 @@ describe("Heroku provider", () => {
   test("constructs URL from HEROKU_APP_NAME", () => {
     const heroku = findProvider("heroku")
     expect(heroku.resolveUrl({ HEROKU_APP_NAME: "myapp" })).toBe("myapp.herokuapp.com")
+  })
+
+  test("prefers HEROKU_APP_DEFAULT_DOMAIN_NAME (random-suffix apps)", () => {
+    const heroku = findProvider("heroku")
+    expect(
+      heroku.resolveUrl({
+        HEROKU_APP_NAME: "myapp",
+        HEROKU_APP_DEFAULT_DOMAIN_NAME: "myapp-1234567890ab.herokuapp.com",
+      })
+    ).toBe("myapp-1234567890ab.herokuapp.com")
+  })
+
+  test("detects via dyno-metadata domain alone", () => {
+    const heroku = findProvider("heroku")
+    expect(
+      heroku.detect({ HEROKU_APP_DEFAULT_DOMAIN_NAME: "myapp-1234567890ab.herokuapp.com" })
+    ).toBe(true)
+  })
+
+  test("review apps are preview and have no canonical production URL", () => {
+    const heroku = findProvider("heroku")
+    expect(heroku.resolveEnv({ HEROKU_APP_NAME: "myapp", HEROKU_PR_NUMBER: "42" })).toBe(
+      "preview"
+    )
+    expect(
+      heroku.resolveProductionUrl?.({ HEROKU_APP_NAME: "myapp", HEROKU_PR_NUMBER: "42" })
+    ).toBeNull()
   })
 
   test("defaults to production", () => {

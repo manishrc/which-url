@@ -190,7 +190,7 @@ If your app origin and tenant suffix differ — for example `app.foo.com` for th
 | **Fly.io** | `FLY_APP_NAME` | `{app}.fly.dev` | [ ] |
 | **Render** | `RENDER` | `RENDER_EXTERNAL_URL` | [ ] |
 | **DigitalOcean** | `DIGITALOCEAN_APP_PLATFORM` | `APP_URL` | [ ] |
-| **Heroku** | `HEROKU_APP_NAME` | `{app}.herokuapp.com` | [ ] |
+| **Heroku** | `HEROKU_APP_NAME` | `HEROKU_APP_DEFAULT_DOMAIN_NAME` / `{app}.herokuapp.com` | [ ] |
 
 On the client, Vercel's framework-prefixed env vars (`NEXT_PUBLIC_VERCEL_URL`, `VITE_VERCEL_URL`, etc.) are detected automatically.
 
@@ -220,6 +220,10 @@ if (isProduction) {
 ```
 
 ## Gotchas
+
+### `origin` is an origin — paths are dropped
+
+`origin`, `href`, `hostname`, etc. describe the app's *origin*, not an arbitrary URL. If you set `APP_URL=https://example.com/base`, the `/base` path is discarded and `origin` becomes `https://example.com`. Keep base paths in your own routing config; `which-url` only resolves where the app lives, not where it's mounted.
 
 ### Vercel: Redeploy after assigning a custom domain
 

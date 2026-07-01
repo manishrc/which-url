@@ -40,6 +40,13 @@ export const providers: ProviderDetector[] = [
     name: "cloudflare",
     detect: (env) => !!env.CF_PAGES,
     resolveUrl: (env) => env.CF_PAGES_URL || null,
+    // CF Pages exposes no "is this the production branch" flag, so we infer from
+    // the conventional default branch names. Projects with a custom production
+    // branch should set APP_ENV / APP_PRODUCTION_URL to override.
+    resolveProductionUrl: (env) =>
+      env.CF_PAGES_BRANCH === "main" || env.CF_PAGES_BRANCH === "master"
+        ? env.CF_PAGES_URL || null
+        : null,
     resolveEnv: (env) => {
       if (env.CF_PAGES_BRANCH === "main" || env.CF_PAGES_BRANCH === "master")
         return "production"
@@ -50,9 +57,19 @@ export const providers: ProviderDetector[] = [
     name: "railway",
     detect: (env) => !!env.RAILWAY_PUBLIC_DOMAIN,
     resolveUrl: (env) => env.RAILWAY_PUBLIC_DOMAIN || null,
-    resolveProductionUrl: (env) => env.RAILWAY_PUBLIC_DOMAIN || null,
+    resolveProductionUrl: (env) =>
+      // Only the "production" environment's domain is canonical. In a PR/staging
+      // environment RAILWAY_PUBLIC_DOMAIN points at that ephemeral deployment.
+      env.RAILWAY_ENVIRONMENT_NAME === "production" ||
+      env.RAILWAY_ENVIRONMENT === "production" ||
+      (!env.RAILWAY_ENVIRONMENT_NAME && !env.RAILWAY_ENVIRONMENT)
+        ? env.RAILWAY_PUBLIC_DOMAIN || null
+        : null,
     resolveEnv: (env) => {
-      if (env.RAILWAY_ENVIRONMENT === "production") return "production"
+      // Railway environments are user-named; "production" is the default env.
+      // Anything else (PR environments, staging) is a non-production deploy.
+      const name = env.RAILWAY_ENVIRONMENT_NAME || env.RAILWAY_ENVIRONMENT
+      if (name && name !== "production") return "preview"
       return "production"
     },
   },
@@ -85,11 +102,19 @@ export const providers: ProviderDetector[] = [
   },
   {
     name: "heroku",
-    detect: (env) => !!env.HEROKU_APP_NAME,
+    detect: (env) => !!env.HEROKU_APP_NAME || !!env.HEROKU_APP_DEFAULT_DOMAIN_NAME,
+    // Apps created after 2023-06-14 get a random suffix (app-1234567890ab.herokuapp.com),
+    // so `${name}.herokuapp.com` is wrong. HEROKU_APP_DEFAULT_DOMAIN_NAME (dyno metadata)
+    // is the real domain; fall back to the legacy pattern only when it's absent.
     resolveUrl: (env) =>
-      env.HEROKU_APP_NAME ? `${env.HEROKU_APP_NAME}.herokuapp.com` : null,
+      env.HEROKU_APP_DEFAULT_DOMAIN_NAME ||
+      (env.HEROKU_APP_NAME ? `${env.HEROKU_APP_NAME}.herokuapp.com` : null),
     resolveProductionUrl: (env) =>
-      env.HEROKU_APP_NAME ? `${env.HEROKU_APP_NAME}.herokuapp.com` : null,
-    resolveEnv: () => "production",
+      env.HEROKU_PR_NUMBER
+        ? null
+        : env.HEROKU_APP_DEFAULT_DOMAIN_NAME ||
+          (env.HEROKU_APP_NAME ? `${env.HEROKU_APP_NAME}.herokuapp.com` : null),
+    // Review apps set HEROKU_PR_NUMBER (dyno metadata).
+    resolveEnv: (env) => (env.HEROKU_PR_NUMBER ? "preview" : "production"),
   },
 ]

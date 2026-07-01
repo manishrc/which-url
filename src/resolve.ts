@@ -1,6 +1,7 @@
 import { providers } from "./providers"
 import { normalizeUrl } from "./normalize"
 import { getVar, getEnv } from "./env-var"
+import { resolveEnv } from "./env"
 import type { Platform } from "./types"
 
 export interface ResolveResult {
@@ -17,10 +18,10 @@ export function resolveUrl(envOverride?: object): ResolveResult {
 
   // 2. Portless — prefer Tailscale URL (publicly accessible) over local .localhost
   if (env.PORTLESS_TAILSCALE_URL) {
-    return { url: env.PORTLESS_TAILSCALE_URL, debugLabel: `[portless:tailscale] PORTLESS_TAILSCALE_URL=${env.PORTLESS_TAILSCALE_URL}` }
+    return { url: normalizeUrl(env.PORTLESS_TAILSCALE_URL), debugLabel: `[portless:tailscale] PORTLESS_TAILSCALE_URL=${env.PORTLESS_TAILSCALE_URL}` }
   }
   if (env.PORTLESS_URL) {
-    return { url: env.PORTLESS_URL, debugLabel: `[portless] PORTLESS_URL=${env.PORTLESS_URL}` }
+    return { url: normalizeUrl(env.PORTLESS_URL), debugLabel: `[portless] PORTLESS_URL=${env.PORTLESS_URL}` }
   }
 
   // 3. Provider detection
@@ -36,9 +37,12 @@ export function resolveUrl(envOverride?: object): ResolveResult {
     return { url: window.location.origin, debugLabel: `[browser] window.location.origin` }
   }
 
-  // 5. Development fallback
-  const isProduction = env.NODE_ENV === "production"
-  if (!isProduction) {
+  // 5. Development fallback — only when we are NOT resolving a production env.
+  // Keyed on the fully-resolved env (APP_ENV / provider / NODE_ENV), not NODE_ENV
+  // alone, so `APP_ENV=production` with no URL fails loudly instead of silently
+  // returning localhost.
+  const { env: resolvedEnv } = resolveEnv(envOverride)
+  if (resolvedEnv !== "production") {
     const port = env.PORT || "3000"
     return { url: `http://localhost:${port}`, debugLabel: `[fallback] PORT=${port}` }
   }
@@ -90,7 +94,7 @@ export function resolveProductionUrl(envOverride?: object): ResolveResult | null
   }
 
   const appUrl = getVar(env, "APP_URL")
-  if (appUrl && env.NODE_ENV === "production") {
+  if (appUrl && resolveEnv(envOverride).env === "production") {
     return {
       url: normalizeUrl(appUrl),
       debugLabel: `[production:current] APP_URL=${appUrl}`,
