@@ -20,6 +20,12 @@ export const providers: ProviderDetector[] = [
       if (vercelEnv === "preview") return "preview"
       return "local"
     },
+    resolveAliasUrls: (env) =>
+      [
+        getVar(env, "VERCEL_PROJECT_PRODUCTION_URL"),
+        getVar(env, "VERCEL_BRANCH_URL"),
+        getVar(env, "VERCEL_URL"),
+      ].filter((u): u is string => !!u),
   },
   {
     name: "netlify",
@@ -35,6 +41,10 @@ export const providers: ProviderDetector[] = [
         return "preview"
       return "local"
     },
+    resolveAliasUrls: (env) =>
+      [env.URL, env.DEPLOY_PRIME_URL, env.DEPLOY_URL].filter(
+        (u): u is string => !!u
+      ),
   },
   {
     name: "cloudflare",

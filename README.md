@@ -2,7 +2,7 @@
 
 Auto-detect your app's URL across hosting providers. Zero config.
 
-This README documents `which-url@0.0.11`.
+This README documents `which-url@0.0.12`.
 
 ```bash
 npm install which-url
@@ -167,6 +167,107 @@ In Next.js browser bundles on Vercel deployments, it is detected from `NEXT_PUBL
 
 **Client-side frameworks:** Framework prefixes are supported here too — `NEXT_PUBLIC_APP_PRODUCTION_URL`, `VITE_APP_PRODUCTION_URL`, `PUBLIC_APP_PRODUCTION_URL`, etc. These are build-time values in browser bundles.
 
+## Allow-lists with `allowedOrigins` and `allowedHostnames`
+
+Frameworks and libraries keep asking for the same thing under different names — Next.js `allowedDevOrigins`, better-auth `trustedOrigins`, `images.remotePatterns`, CORS. And in dev the answer is often *several* URLs at once: with portless you can be reachable on `myapp.localhost`, a Tailscale URL, and an ngrok URL simultaneously.
+
+`allowedOrigins` is every origin that is your app in the current environment — primary first (`allowedOrigins[0] === origin`), deduped. `allowedHostnames` is the same list reduced to unique hostnames. Both work identically in production, where the list is just your real origins (e.g. custom domain + deployment URL on Vercel).
+
+```typescript
+import { allowedOrigins } from 'which-url'
+
+// better-auth
+betterAuth({ trustedOrigins: allowedOrigins })
+
+// CORS
+cors({ origin: allowedOrigins })
+```
+
+For the full Next.js wiring (`allowedDevOrigins`, `images.remotePatterns`, Server Actions), see [Next.js setup](#nextjs-setup) below.
+
+What lands in the list:
+
+| Environment | `allowedOrigins` |
+|---|---|
+| Local dev | `http://localhost:3000` |
+| Local dev + portless | `https://myapp.localhost`, `http://localhost:{PORT}` |
+| … + `--tailscale`/`--funnel` | Tailscale URL first, then the above |
+| … + `--ngrok` | ngrok URL first, then the above |
+| Vercel preview | branch URL, production domain, deployment URL |
+| Vercel production | production domain, deployment URL |
+
+On the unresolved import-safe fallback (`isResolved: false`), both are `[]`.
+
+## Next.js setup
+
+Complete wiring for a Next.js app. Each config knob wants a different shape — this table is the contract (coding agents: use these exact mappings, don't hardcode hostnames):
+
+| Knob | which-url source | Expected shape |
+|---|---|---|
+| `allowedDevOrigins` (next.config) | `allowedHostnames` | hostnames, no protocol |
+| `images.remotePatterns` | `allowedHostnames` → `{ hostname }` | pattern objects |
+| `experimental.serverActions.allowedOrigins` | `allowedOrigins` → `new URL(o).host` | `host[:port]`, no protocol |
+| better-auth `baseURL` | `origin` | full origin |
+| better-auth `trustedOrigins` | `allowedOrigins` | full origins with protocol |
+| `metadataBase` | `productionOrigin ?? origin` | `URL` instance |
+
+```typescript
+// next.config.ts
+import type { NextConfig } from 'next'
+import { allowedOrigins, allowedHostnames } from 'which-url'
+
+const nextConfig: NextConfig = {
+  // Dev server accepts requests from proxied hostnames (portless, tunnels).
+  // Dev-only option; ignored in production builds.
+  allowedDevOrigins: allowedHostnames,
+
+  images: {
+    // Lets next/image load images the app references by its own absolute URLs.
+    // Only needed if you do that; harmless otherwise.
+    remotePatterns: allowedHostnames.map((hostname) => ({ hostname })),
+  },
+
+  experimental: {
+    serverActions: {
+      // Server Actions reject requests whose Origin header doesn't match the
+      // Host header — which is exactly what happens behind a proxy or tunnel.
+      allowedOrigins: allowedOrigins.map((o) => new URL(o).host),
+    },
+  },
+}
+
+export default nextConfig
+```
+
+```typescript
+// lib/auth.ts — better-auth
+import { betterAuth } from 'better-auth'
+import { createUrl } from 'which-url'
+
+const appUrl = createUrl() // strict: throws in production if no URL is detectable
+
+export const auth = betterAuth({
+  baseURL: appUrl.origin,
+  trustedOrigins: appUrl.allowedOrigins,
+})
+```
+
+```typescript
+// app/layout.tsx — canonical URLs and social cards point at production, even from previews
+import type { Metadata } from 'next'
+import { productionOrigin, origin, isResolved } from 'which-url'
+
+export const metadata: Metadata = {
+  metadataBase: isResolved ? new URL(productionOrigin ?? origin) : undefined,
+}
+```
+
+Notes:
+
+- `next.config.ts` runs in Node.js when the server starts, so the plain named imports are correct there — no `createUrl()` needed. Under portless/tunnels the env vars are already set because portless wraps the dev command (`portless run next dev`).
+- Values are resolved when the server starts. If you add a tunnel or change env vars, restart dev.
+- Nothing here needs to change between dev, preview, and production — that is the point. Deploy the same config everywhere.
+
 ## Multi-tenant apps
 
 For subdomain-based tenants, `hostname` is often enough when the current app host is also the tenant suffix:
@@ -243,7 +344,7 @@ Zero config — [portless](https://portless.sh) sets `PORTLESS_URL` and `which-u
 origin → https://myapp.localhost
 ```
 
-When sharing via Tailscale (`portless run --tailscale`), `PORTLESS_TAILSCALE_URL` takes priority so `origin` returns the publicly-reachable URL.
+When sharing publicly, the publicly-reachable URL takes priority for `origin`: `PORTLESS_TAILSCALE_URL` (set by `--tailscale` and `--funnel`), then `PORTLESS_NGROK_URL` (set by `--ngrok`), then `PORTLESS_URL`. All active portless URLs are included in [`allowedOrigins`](#allow-lists-with-allowedorigins-and-allowedhostnames).
 
 ### Tunnels (ngrok, Cloudflare Tunnel)
 
@@ -315,6 +416,8 @@ Strict resolver function. It resolves when called and throws if no URL can be de
 | `protocol` | `string` | `"https:"` |
 | `port` | `string` | `""` or `"3000"` |
 | `productionOrigin` | `string \| undefined` | `"https://myapp.com"` or `undefined` |
+| `allowedOrigins` | `string[]` | `["https://myapp.com", "https://myapp.vercel.app"]` |
+| `allowedHostnames` | `string[]` | `["myapp.com", "myapp.vercel.app"]` |
 | `env` | `AppEnv` | `"production"` \| `"preview"` \| `"local"` |
 | `platform` | `Platform` | `"vercel"` \| `"netlify"` \| ... \| `null` |
 | `debug`* | `string` | `"[provider:vercel] url=myapp.com \| env=production (vercel:production)"` |

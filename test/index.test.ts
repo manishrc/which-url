@@ -200,6 +200,107 @@ describe("which-url public API", () => {
   })
 })
 
+describe("allowedOrigins / allowedHostnames allow-list", () => {
+  test("portless multi-hostname dev: all portless URLs + localhost, primary first", () => {
+    process.env.PORTLESS_URL = "https://myapp.localhost"
+    process.env.PORTLESS_TAILSCALE_URL = "https://myapp.tail1234.ts.net"
+    process.env.PORT = "52341"
+    const { createUrl } = require("../src/index")
+
+    const appUrl = createUrl()
+    expect(appUrl.origin).toBe("https://myapp.tail1234.ts.net")
+    expect(appUrl.allowedOrigins).toEqual([
+      "https://myapp.tail1234.ts.net",
+      "https://myapp.localhost",
+      "http://localhost:52341",
+    ])
+    expect(appUrl.allowedHostnames).toEqual([
+      "myapp.tail1234.ts.net",
+      "myapp.localhost",
+      "localhost",
+    ])
+    delete process.env.PORT
+  })
+
+  test("portless with ngrok included", () => {
+    process.env.PORTLESS_URL = "https://myapp.localhost"
+    process.env.PORTLESS_NGROK_URL = "https://abc123.ngrok-free.app"
+    const { createUrl } = require("../src/index")
+
+    expect(createUrl().allowedOrigins).toEqual([
+      "https://abc123.ngrok-free.app",
+      "https://myapp.localhost",
+      "http://localhost:3000",
+    ])
+  })
+
+  test("Vercel preview: branch URL, production domain, deployment URL — deduped", () => {
+    const { createUrl } = require("../src/index")
+    const appUrl = createUrl({
+      env: {
+        VERCEL: "1",
+        VERCEL_ENV: "preview",
+        VERCEL_URL: "myapp-abc123.vercel.app",
+        VERCEL_BRANCH_URL: "myapp-git-feat.vercel.app",
+        VERCEL_PROJECT_PRODUCTION_URL: "myapp.com",
+      },
+    })
+    expect(appUrl.allowedOrigins).toEqual([
+      "https://myapp-git-feat.vercel.app",
+      "https://myapp.com",
+      "https://myapp-abc123.vercel.app",
+    ])
+    expect(appUrl.allowedHostnames).toContain("myapp.com")
+  })
+
+  test("plain local dev: single localhost origin, no duplicates", () => {
+    const { createUrl } = require("../src/index")
+    const appUrl = createUrl({ env: { NODE_ENV: "development", PORT: "4000" } })
+    expect(appUrl.allowedOrigins).toEqual(["http://localhost:4000"])
+    expect(appUrl.allowedHostnames).toEqual(["localhost"])
+  })
+
+  test("production via APP_URL: no localhost in the list", () => {
+    const { createUrl } = require("../src/index")
+    const appUrl = createUrl({
+      env: { APP_URL: "https://myapp.com", NODE_ENV: "production" },
+    })
+    expect(appUrl.allowedOrigins).toEqual(["https://myapp.com"])
+  })
+
+  test("unresolved fallback exposes empty lists", () => {
+    const env = { ...process.env, NODE_ENV: "production" }
+    delete env.APP_URL
+    delete env.NEXT_PUBLIC_APP_URL
+    delete env.VERCEL
+    delete env.VERCEL_ENV
+    delete env.VERCEL_URL
+
+    const result = Bun.spawnSync({
+      cmd: [
+        "bun",
+        "-e",
+        "import appUrl from './src/index.ts'; console.log(JSON.stringify(appUrl))",
+      ],
+      env,
+      stdout: "pipe",
+      stderr: "pipe",
+    })
+
+    const appUrl = JSON.parse(result.stdout.toString())
+    expect(appUrl.allowedOrigins).toEqual([])
+    expect(appUrl.allowedHostnames).toEqual([])
+  })
+
+  test("portless PORTLESS_TAILSCALE_URL without protocol is normalized in origins", () => {
+    const { createUrl } = require("../src/index")
+    const appUrl = createUrl({
+      env: { NODE_ENV: "development", PORTLESS_URL: "myapp.localhost" },
+    })
+    expect(appUrl.allowedOrigins).toContain("https://myapp.localhost")
+  })
+})
+
 describe("createUrl({ env }) — runtime-supplied env (Cloudflare Workers, etc.)", () => {
   test("resolves APP_URL from a passed env object", () => {
     const { createUrl } = require("../src/index")

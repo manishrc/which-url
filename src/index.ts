@@ -1,6 +1,19 @@
-import { resolveUrl, resolveProductionUrl, resolvePlatform } from "./resolve"
+import { resolveUrl, resolveProductionUrl, resolvePlatform, resolveAliasUrls } from "./resolve"
 import { resolveEnv } from "./env"
 import type { WhichUrlWithDebug, AppEnv, Platform, CreateUrlOptions } from "./types"
+
+function collectOrigins(primary: string, envOverride?: object): string[] {
+  const origins = [primary]
+  for (const url of resolveAliasUrls(envOverride)) {
+    try {
+      const origin = new URL(url).origin
+      if (!origins.includes(origin)) origins.push(origin)
+    } catch {
+      // A malformed alias var must not break primary resolution.
+    }
+  }
+  return origins
+}
 
 function makeDebugNonEnumerable(result: WhichUrlWithDebug): WhichUrlWithDebug {
   Object.defineProperty(result, "debug", {
@@ -24,6 +37,8 @@ export function createUrl(options?: CreateUrlOptions): WhichUrlWithDebug {
     ? ` | production=${productionOrigin} (${productionResult.debugLabel})`
     : " | production=unresolved"
   const debug = `${urlDebug} | env=${env} (${envDebug})${productionDebug}`
+  const allowedOrigins = collectOrigins(parsed.origin, envOverride)
+  const allowedHostnames = [...new Set(allowedOrigins.map((o) => new URL(o).hostname))]
 
   const result: WhichUrlWithDebug = {
     href: parsed.origin,
@@ -33,6 +48,8 @@ export function createUrl(options?: CreateUrlOptions): WhichUrlWithDebug {
     protocol: parsed.protocol,
     port: parsed.port,
     productionOrigin,
+    allowedOrigins,
+    allowedHostnames,
     env,
     platform,
     debug,
@@ -66,6 +83,8 @@ function createFallback(error: unknown): WhichUrlWithDebug {
     protocol: "",
     port: "",
     productionOrigin: undefined,
+    allowedOrigins: [],
+    allowedHostnames: [],
     env: resolvedEnv,
     platform: resolvePlatform(),
     debug: `[error] ${message} | env=${resolvedEnv} (${envDebug})`,
@@ -100,6 +119,10 @@ export const protocol: string = _resolved.protocol
 export const port: string = _resolved.port
 /** Canonical production origin when configured or detectable, otherwise `undefined`. */
 export const productionOrigin: string | undefined = _resolved.productionOrigin
+/** Every origin that is this app right now, primary first — for trustedOrigins, CORS, CSP. */
+export const allowedOrigins: string[] = _resolved.allowedOrigins
+/** Unique hostnames of `allowedOrigins` — for allowedDevOrigins, images.remotePatterns, cookie domains. */
+export const allowedHostnames: string[] = _resolved.allowedHostnames
 /** Current environment — `"production"`, `"preview"`, or `"local"` */
 export const env: AppEnv = _resolved.env
 /** Detected hosting platform — `"vercel"`, `"netlify"`, etc. or `null` */
