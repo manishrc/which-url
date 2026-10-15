@@ -95,6 +95,8 @@ When you call `whichUrl({ env })`, the passed object replaces `process.env` as t
 
 If nothing is detected in production, the default singleton returns empty current-URL strings and `isResolved: false` so imports stay safe in tests, client bundles, and build tools. Call `whichUrl()` directly when a missing current URL should throw.
 
+`next build` on your own machine is the common way to hit this: Next runs it with `NODE_ENV=production` and no hosting provider vars, so nothing resolves and `` `${origin}/settings` `` becomes `/settings`. That usually fails later as an `Invalid URL` error from whichever library received it. The singleton prints a one-line `[which-url]` warning when this happens during `next build`. Set `APP_URL=http://localhost:3000` for local production builds.
+
 `origin` is the current environment origin. In a preview deployment, it should point at the preview. In production, it should point at production. Locally, it should point at local dev.
 
 `productionOrigin` is the canonical production origin when configured or detectable, otherwise `undefined`. Use it for things that should still point at the public production site from previews, such as canonical metadata, social cards, and "view live site" links. When you need a URL in all environments, use `productionOrigin ?? origin`.

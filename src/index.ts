@@ -1,5 +1,6 @@
 import { resolveUrl, resolveProductionUrl, resolvePlatform, resolveAliasUrls } from "./resolve"
 import { resolveEnv } from "./env"
+import { unresolvedWarning } from "./warn"
 import type {
   WhichUrl,
   ResolvedWhichUrl,
@@ -116,6 +117,9 @@ try {
   _resolved = whichUrl()
 } catch (e) {
   _resolved = createFallback(e)
+  const nextPhase = typeof process !== "undefined" ? process.env?.NEXT_PHASE : undefined
+  const warning = unresolvedWarning(nextPhase, _resolved.debug)
+  if (warning) console.warn(warning)
 }
 
 /** Full origin — `"https://myapp.com"` */
